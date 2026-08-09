@@ -1,6 +1,3 @@
-<!-- 源: core/*.md + personas/<id>/{AGENTS.md,prompts/} + capabilities/<cap>/  + personas/*.yaml | 生成产物（AGENTS.md / CLAUDE.md / GEMINI.md 等）均非源，请勿手改 -->
-
-
 ## [core] core/session-refresh.md
 # Session Runtime Refresh Protocol（会话运行时刷新协议）
 
