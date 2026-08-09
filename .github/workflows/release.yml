@@ -23,7 +23,7 @@ jobs:
           pip install --quiet build
           python -m build --wheel
       - name: Attach wheel to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*.whl
           generate_release_notes: true
