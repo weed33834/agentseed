@@ -7,10 +7,11 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  checks: read
 
 jobs:
   auto-merge:
-    name: auto-merge patch updates
+    name: auto-merge
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
@@ -19,11 +20,34 @@ jobs:
         uses: dependabot/fetch-metadata@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Auto-merge patch and minor updates
+      - name: Wait for CI checks and merge
         if: |
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        run: gh pr merge --auto --squash "$PR_URL"
+        run: |
+          sleep 15  # let CI workflows register their checks
+          for i in $(seq 1 80); do
+            STATES=$(gh pr checks "$PR_URL" --json name,state --jq 'map(select(.name | test("auto-merge") | not)) | [.[].state]' 2>/dev/null || echo '[]')
+            TOTAL=$(echo "$STATES" | jq 'length')
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "No other checks — merging directly."
+              gh pr merge --squash "$PR_URL"
+              exit 0
+            fi
+            if echo "$STATES" | grep -qE "FAILURE|CANCELLED|TIMED_OUT|ACTION_REQUIRED"; then
+              echo "A check failed — not merging."
+              exit 0
+            fi
+            PASSING=$(echo "$STATES" | jq '[.[] | select(. == "SUCCESS" or . == "SKIPPED")] | length')
+            if [ "$PASSING" -eq "$TOTAL" ]; then
+              echo "All checks passed — merging!"
+              gh pr merge --squash "$PR_URL"
+              exit 0
+            fi
+            echo "Waiting for checks... ($i/80)"
+            sleep 30
+          done
+          echo "Timed out waiting for checks."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
