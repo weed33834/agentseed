@@ -10,9 +10,9 @@
 
 ![License](https://img.shields.io/badge/license-Apache_2.0-blue)
 ![CI](https://github.com/weed33834/agentseed/actions/workflows/ci.yml/badge.svg)
-![Personas](https://img.shields.io/badge/personas-6-green)
-![Platforms](https://img.shields.io/badge/platforms-14-orange)
-![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)
+![Personas](https://img.shields.io/badge/personas-5-green)
+![Platforms](https://img.shields.io/badge/platforms-15-orange)
+![Tests](https://img.shields.io/badge/tests-171%20passing-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10%2B-informational)
 
 ---
@@ -143,7 +143,7 @@ src/agentseed/         CLI, sync engine, router, forge, evolution
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Short version: edit source files in `core/`, `personas/`, or `capabilities/`; run `agentseed sync` to regenerate platform files; don't hand-edit generated files.
 
-Tests: `python -m pytest tests/` (143 passing).
+Tests: `python -m pytest tests/` (171 passing).
 
 ---
 

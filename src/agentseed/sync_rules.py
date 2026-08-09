@@ -1212,8 +1212,8 @@ PROFILE_ANCHORS = {
 INTENT_KEYWORDS = {
     "coding": ["写代码", "开发", "bug", "重构", "code", "develop", "编程", "修复"],
     "novel": ["写小说", "小说", "章节", "novel", "story", "创作小说"],
-    "default": ["问答", "调研", "对比", "信息检索", "research", "general"],
-    "paper": ["论文", "文献综述", "paper", "academic", "research paper", "投稿"],
+    "default": ["问答", "调研", "对比", "信息检索", "general", "通用"],
+    "paper": ["论文", "文献综述", "paper", "academic", "research paper", "投稿", "research"],
     "agent-builder": ["智能体", "agent", "bot", "助手", "构建 agent"],
 }
 

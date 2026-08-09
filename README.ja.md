@@ -8,9 +8,9 @@
 
 ![License](https://img.shields.io/badge/license-Apache_2.0-blue)
 ![CI](https://github.com/weed33834/agentseed/actions/workflows/ci.yml/badge.svg)
-![Personas](https://img.shields.io/badge/personas-6-green)
-![Platforms](https://img.shields.io/badge/platforms-14-orange)
-![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)
+![Personas](https://img.shields.io/badge/personas-5-green)
+![Platforms](https://img.shields.io/badge/platforms-15-orange)
+![Tests](https://img.shields.io/badge/tests-171%20passing-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10%2B-informational)
 
 ---
@@ -136,7 +136,7 @@ src/agentseed/         CLI、同期エンジン、ルーター、forge、自己�
 
 [CONTRIBUTING.md](CONTRIBUTING.md) 参照。基本：ソース（`core/`、`personas/`、`capabilities/`）を編集 → `agentseed sync` → 生成ファイルは手編集しない。
 
-テスト：`python -m pytest tests/`（143件パス）。
+テスト：`python -m pytest tests/`（171件パス）。
 
 ---
 

@@ -8,9 +8,9 @@
 
 ![License](https://img.shields.io/badge/license-Apache_2.0-blue)
 ![CI](https://github.com/weed33834/agentseed/actions/workflows/ci.yml/badge.svg)
-![Personas](https://img.shields.io/badge/personas-6-green)
+![Personas](https://img.shields.io/badge/personas-5-green)
 ![Platforms](https://img.shields.io/badge/platforms-15-orange)
-![Tests](https://img.shields.io/badge/tests-162%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-171%20passing-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10%2B-informational)
 
 ---
@@ -171,7 +171,7 @@ src/agentseed/         CLI、同步引擎、路由、装配、自进化
 
 看 [CONTRIBUTING.md](CONTRIBUTING.md)。简单说：改源文件（`core/`、`personas/`、`capabilities/`）→ 跑 `agentseed sync` 重生成平台文件 → 别手动改生成产物。
 
-跑测试：`python -m pytest tests/`（143 通过）。
+跑测试：`python -m pytest tests/`（171 通过）。
 
 ---
 

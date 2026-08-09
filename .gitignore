@@ -40,6 +40,7 @@ __pycache__/
 /best_practices.md
 .lingma/rules/
 .comate/rules/
+/.codex/rules.md
 provenance/
 
 # 限长平台分片目录（由 sync_rules.py 在 skeleton 模式自动分片生成）
