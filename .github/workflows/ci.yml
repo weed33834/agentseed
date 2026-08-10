@@ -18,6 +18,22 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install
         run: pip install --quiet -e ".[dev]"
+      - name: Check AGENTS.md freshness
+        run: |
+          python -c "
+          from agentseed.sync_rules import build_ruleset
+          from pathlib import Path
+          committed = Path('AGENTS.md').read_text(encoding='utf-8')
+          fresh = build_ruleset('coding', mode='skeleton')
+          # Strip the generated timestamp line for comparison
+          import re
+          committed_body = re.sub(r'generated: [^\|]+', '', committed)
+          fresh_body = re.sub(r'generated: [^\|]+', '', fresh)
+          if committed_body.strip() != fresh_body.strip():
+              print('ERROR: AGENTS.md is stale. Run: agentseed sync --profile coding')
+              exit(1)
+          print('AGENTS.md is fresh')
+          "
       - name: Run tests
         run: python -m pytest tests/ -q
       - name: Validate scenario packs

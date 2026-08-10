@@ -27,6 +27,8 @@ __pycache__/
 # 克隆后运行: python scripts/sync_rules.py --profile <id> --tool <tool>
 # 注意：必须用 /AGENTS.md 锚定仓库根，否则会静默忽略 personas/*/AGENTS.md（场景协议源文件）
 /AGENTS.md
+# 例外：根 AGENTS.md 是项目产品展示 + 测试夹具，需入库（CI 会校验新鲜度）
+!/AGENTS.md
 /CLAUDE.md
 /GEMINI.md
 /.cursor/rules/
