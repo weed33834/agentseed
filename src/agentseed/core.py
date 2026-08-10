@@ -6,6 +6,7 @@ sync_rules.py 的实际实现就在本包内（agentseed/sync_rules.py），
 from .sync_rules import (  # noqa: F401
     REPO_ROOT, PERSONAS_DIR, CORE_DIR, ADAPTERS_DIR,
     TOOL_OUTPUT, TOOL_CHAR_LIMIT, PROFILE_INLINE_BASENAMES, SKELETON_BUDGET_BYTES,
+    PLATFORM_DETECT_MARKERS,
     parse_manifest, parse_includes, parse_list_field,
     read_file, expand_refs,
     extract_metadata, derive_keywords, _collect_mcp_files,

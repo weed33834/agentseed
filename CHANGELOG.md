@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0] — 2026-08-10
+
+架构清理与平台检测优化。
+
+### Fixed
+- **dar 能力包路径错误**：`build_ruleset(mode="full")` 查找 `capabilities/dar/prompt.md`，但 dar 实际在 `capabilities/research/dar/`（无 prompt.md）。新增 `_resolve_capability_path()` 路径解析器，full 模式正确加载 dar README.md 作为能力包文档。
+- **平台检测逻辑重复且不一致**：`forge.py PLATFORM_DETECTION` 只覆盖 9 个平台，`sync_rules.detect_tool_from_cwd()` 覆盖 11 个，检测路径也不同。新增统一 `PLATFORM_DETECT_MARKERS` 注册表作为单一真相源，forge.py 从中派生。
+- **sync --tool all 重复写入 AGENTS.md**：agents-md 和 qwenwork 都写 AGENTS.md，第二次覆盖第一次。sync/apply/main 三个入口均添加 `seen_outputs` 去重，跳过重复写入并打印提示。
+- **forge.py docstring 写"13 个平台"**：实际 15 个，已修正。
+- **detect_tool_from_cwd docstring 写"再看 IDE 进程"**：实际无进程检测代码，修正为准确描述。
+
+### Changed
+- 版本号 1.0.0 → 1.1.0（pyproject.toml / __init__.py / CITATION.cff）。
+
 ## [1.0.0] — 2026-08-08
 
 AgentSeed 首个正式版本。此前内部迭代（2.x / 1.x 实验版本）已整合归档，全部能力收口到 1.0.0。
