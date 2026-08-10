@@ -272,12 +272,21 @@ def cmd_sync(args) -> int:
             tools = [args.platform] if args.platform != "all" else list(_sr.TOOL_OUTPUT)
         else:
             tools = list(_sr.TOOL_OUTPUT)
+        # 去重：qwenwork 和 agents-md 写同一文件 AGENTS.md，跳过 qwenwork（agents-md 先写）
+        seen_outputs = set()
         for t in tools:
             if t not in _sr.TOOL_OUTPUT:
                 if not getattr(args, "json", False):
                     print(f"  ⚠ 跳过未知平台 {t}")
                 skipped.append(t)
                 continue
+            out_rel = _sr.TOOL_OUTPUT[t]
+            if out_rel in seen_outputs:
+                if not getattr(args, "json", False):
+                    print(f"  ⚡ 跳过 {t}（与已同步平台写同一文件 {out_rel}）")
+                skipped.append(t)
+                continue
+            seen_outputs.add(out_rel)
             path = _sr.write_tool_file(t, persona, ruleset, mode=args.mode)
             try:
                 rel = path.relative_to(out)
@@ -371,7 +380,13 @@ def cmd_apply(args) -> int:
         print(f"规则集大小: {len(ruleset)} 字符 (预算 {_sr.SKELETON_BUDGET_BYTES}) {budget_status}")
 
         tools = list(_sr.TOOL_OUTPUT.keys()) if tool == "all" else [tool]
+        seen_outputs = set()
         for t in tools:
+            out_rel = _sr.TOOL_OUTPUT.get(t, "")
+            if out_rel in seen_outputs:
+                print(f"  ⚡ 跳过 {t}（与已同步平台写同一文件 {out_rel}）")
+                continue
+            seen_outputs.add(out_rel)
             out_path = _sr.write_tool_file(t, profile, ruleset, mode=mode)
             try:
                 rel = out_path.relative_to(display_root)

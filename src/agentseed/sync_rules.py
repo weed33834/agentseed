@@ -256,6 +256,42 @@ TOOL_OUTPUT = {
     "comate": ".comate/rules/project.mdr",
 }
 
+# 平台检测标记表 — 统一真相源，供 detect_tool_from_cwd() 和 forge.py 使用
+# 每个 tuple: (文件/目录标记, 对应平台 ID)
+# 检测顺序：从上到下，第一个匹配即返回
+PLATFORM_DETECT_MARKERS = [
+    # Claude Code — 优先检测（最常见）
+    (".claude", "claude-code"),
+    ("CLAUDE.md", "claude-code"),
+    # Cursor
+    (".cursor", "cursor"),
+    (".cursorrules", "cursor"),
+    # Gemini
+    (".gemini", "gemini"),
+    ("GEMINI.md", "gemini"),
+    # Cline
+    (".cline", "cline"),
+    (".clinerules", "cline"),
+    # Codex
+    (".codex", "codex"),
+    # Trae
+    (".trae", "trae"),
+    # Windsurf
+    (".windsurfrules", "windsurf"),
+    # Copilot
+    (".github/copilot-instructions.md", "copilot"),
+    # Continue
+    (".continue", "continue"),
+    # Amazon Q
+    (".amazonq", "amazon-q"),
+    # Qodo
+    ("best_practices.md", "qodo"),
+    # Lingma
+    (".lingma", "lingma"),
+    # Comate
+    (".comate", "comate"),
+]
+
 # 平台字符限制（skeleton 模式下超限会自动多文件分片）
 TOOL_CHAR_LIMIT = {
     "windsurf": 12000,
@@ -734,6 +770,27 @@ def _split_profile_content(content: str, budget: int, file_path: str) -> tuple:
     return inline_part, deferred
 
 
+def _resolve_capability_path(cap: str, profile_id: str = "") -> tuple:
+    """解析能力包路径，处理非常规布局（如 dar 在 research/dar/ 下）。
+
+    返回 (cap_dir, cap_prompt_path)。
+    cap_prompt_path 为 None 时表示该能力包无 prompt.md（只有配置文件）。
+    """
+    # 标准路径: capabilities/<cap>/prompt.md
+    standard = REPO_ROOT / "capabilities" / cap / "prompt.md"
+    if standard.exists():
+        return (REPO_ROOT / "capabilities" / cap, standard)
+
+    # dar 特殊路径: capabilities/research/dar/README.md
+    if cap == "dar":
+        dar_dir = REPO_ROOT / "capabilities" / "research" / "dar"
+        dar_readme = dar_dir / "README.md"
+        if dar_readme.exists():
+            return (dar_dir, dar_readme)
+
+    return (None, None)
+
+
 def _default_manifest() -> dict:
     """内核通用模式（default）的合成清单：仅 core 层，无 personas 目录依赖。
 
@@ -842,12 +899,12 @@ def build_ruleset(profile_id: str, mode: str = "skeleton") -> str:
             parts.append(expand_refs(read_file(Path(skill_file)), skill_path.parent, inline=True))
         parts.append("\n# === CAPABILITIES LAYER ===\n")
         for cap in manifest.get("enables_capabilities", []):
-            cap_prompt = REPO_ROOT / "capabilities" / cap / "prompt.md"
-            if not cap_prompt.exists():
+            cap_dir, cap_prompt = _resolve_capability_path(cap, profile_id)
+            if cap_prompt is None or not cap_prompt.exists():
                 parts.append(f"\n> [missing capability] {cap}\n")
                 continue
             parts.append(f"\n## [capability] {cap}\n")
-            parts.append(expand_refs(cap_prompt.read_text(encoding="utf-8"), cap_prompt.parent, inline=True))
+            parts.append(expand_refs(cap_prompt.read_text(encoding="utf-8"), cap_dir, inline=True))
 
     return "".join(parts)
 
@@ -1220,37 +1277,16 @@ INTENT_KEYWORDS = {
 
 def detect_tool_from_cwd() -> str:
     """从当前工作目录自动检测用户用的 AI 工具。
-    检测顺序：先看项目里已存在的工具配置目录，再看 IDE 进程。
+
+    检测顺序：先看项目里已存在的工具配置目录/文件，
+    多个匹配时取第一个（用户可显式 --tool 覆盖）。
+    无匹配时回退到 agents-md（跨工具标准，20+ 平台原生读取）。
     """
     cwd = Path.cwd()
-    # 1. 看现有配置目录
-    if (cwd / ".claude").is_dir() or (cwd / "CLAUDE.md").exists():
-        return "claude-code"
-    if (cwd / ".cursor").is_dir() or (cwd / ".cursorrules").exists():
-        return "cursor"
-    if (cwd / ".gemini").is_dir() or (cwd / "GEMINI.md").exists():
-        return "gemini"
-    if (cwd / ".cline").is_dir() or (cwd / ".clinerules").is_dir():
-        return "cline"
-    if (cwd / ".codex").is_dir():
-        return "codex"
-    if (cwd / ".trae").is_dir():
-        return "trae"
-    if (cwd / ".windsurfrules").exists():
-        return "windsurf"
-    if (cwd / ".github" / "copilot-instructions.md").exists():
-        return "copilot"
-    if (cwd / ".continue").is_dir():
-        return "continue"
-    if (cwd / ".amazonq").is_dir():
-        return "amazon-q"
-    if (cwd / "best_practices.md").exists():
-        return "qodo"
-    if (cwd / ".lingma").is_dir():
-        return "lingma"
-    if (cwd / ".comate").is_dir():
-        return "comate"
-    # 2. 默认回退：跨工具标准（20+ 平台原生读取 AGENTS.md）
+    for marker, tool in PLATFORM_DETECT_MARKERS:
+        path = cwd / marker
+        if path.exists() or path.is_dir():
+            return tool
     return "agents-md"
 
 
@@ -1774,7 +1810,13 @@ def main():
     budget_status = "✓ 预算内" if len(ruleset) <= SKELETON_BUDGET_BYTES else "✗ 超预算"
     print(f"装配 profile={args.profile} mode={args.mode}")
     print(f"规则集大小: {len(ruleset)} 字符 (预算 {SKELETON_BUDGET_BYTES}) {budget_status}")
+    seen_outputs = set()
     for tool in tools:
+        out_rel = TOOL_OUTPUT.get(tool, "")
+        if out_rel in seen_outputs:
+            print(f"  ⚡ 跳过 {tool}（与已同步平台写同一文件 {out_rel}）")
+            continue
+        seen_outputs.add(out_rel)
         out_path = write_tool_file(tool, args.profile, ruleset, mode=args.mode)
         extra = ""
         char_limit = TOOL_CHAR_LIMIT.get(tool)

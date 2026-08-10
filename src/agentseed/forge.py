@@ -13,7 +13,7 @@ forge() 完整链路：
       └─ GapScore > 0.75     → 建议并可选自动装配能力包
   → build_ruleset()      组装规则集（宪法+画像+能力包）
   → evolution Quality Gate: 安全/质量/兼容三关
-  → write_tool_file()    生成 13 个平台入口文件
+  → write_tool_file()    生成 15 个平台入口文件
   → emit_constraints()   分发平台钩子
 
 本模块将 router.py / evolution.py / sync_rules.py 三者串联为统一装配体验。
@@ -37,18 +37,10 @@ from .evolution import (
 )
 
 
-# Platform anchor files
-PLATFORM_DETECTION = {
-    ".claude": "claude-code",
-    ".cursor": "cursor",
-    ".github/copilot-instructions.md": "copilot",
-    ".trae": "trae",
-    ".gemini": "gemini",
-    ".windsurfrules": "windsurf",
-    ".clinerules": "cline",
-    ".continue": "continue",
-    ".amazonq": "amazon-q",
-}
+# Platform anchor files — 从 sync_rules.PLATFORM_DETECT_MARKERS 派生（统一真相源）
+PLATFORM_DETECTION = dict(
+    (marker, tool) for marker, tool in _sr.PLATFORM_DETECT_MARKERS
+)
 
 
 @dataclass
