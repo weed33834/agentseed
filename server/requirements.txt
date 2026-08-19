@@ -1,0 +1,4 @@
+# AgentSeed MCP server has ZERO third-party dependencies.
+# It is implemented with the Python standard library only.
+# Listed here for clarity / future optional extras (e.g. tree-sitter for TS/Go).
+# mcp  # optional, only if you prefer the official SDK over the hand-written server
