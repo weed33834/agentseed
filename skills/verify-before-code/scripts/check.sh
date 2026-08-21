@@ -1,14 +1,39 @@
 #!/usr/bin/env bash
-# AgentSeed quick check — validate the plugin in the given directory.
+# AgentSeed quick check - validate the plugin in the given directory.
 # Usage: ./check.sh [--strict] [plugin-dir]
+#
+# Locates guard_cli.py by walking up from this script until a plugin.json
+# (the plugin root) is found; override with AGENTSEED_PLUGIN_ROOT.
 set -e
-DIR="$(cd "$(dirname "$0")" && pwd)"
-CLI="$DIR/../../../server/guard_cli.py"
-if [ ! -f "$CLI" ] && [ -n "$PLUGIN_ROOT" ]; then CLI="$PLUGIN_ROOT/server/guard_cli.py"; fi
-if [ "$1" = "--strict" ]; then
-  shift
-  "${PYTHON:-python3}" "$CLI" check "$1"
-  exec "${PYTHON:-python3}" "$CLI" scan "$1" --strict
+here="$(cd "$(dirname "$0")" && pwd)"
+
+cli=""
+if [ -n "$AGENTSEED_PLUGIN_ROOT" ] && [ -f "$AGENTSEED_PLUGIN_ROOT/server/guard_cli.py" ]; then
+  cli="$AGENTSEED_PLUGIN_ROOT/server/guard_cli.py"
 else
-  exec "${PYTHON:-python3}" "$CLI" check "${1:-.}"
+  d="$here"
+  for _ in 1 2 3 4 5; do
+    d="$(dirname "$d")"
+    if [ -f "$d/plugin.json" ] && [ -f "$d/server/guard_cli.py" ]; then
+      cli="$d/server/guard_cli.py"; break
+    fi
+  done
+fi
+
+if [ -z "$cli" ]; then
+  echo "error: cannot locate server/guard_cli.py." >&2
+  echo "Install the full AgentSeed plugin, or set AGENTSEED_PLUGIN_ROOT to its directory." >&2
+  exit 2
+fi
+
+py="${PYTHON:-python3}"
+command -v "$py" >/dev/null 2>&1 || py=python
+
+target="${1:-.}"
+if [ "$1" = "--strict" ]; then
+  target="${2:-.}"
+  "$py" "$cli" check "$target"
+  exec "$py" "$cli" scan "$target" --strict
+else
+  exec "$py" "$cli" check "$target"
 fi
