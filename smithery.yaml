@@ -1,0 +1,19 @@
+# Smithery configuration for AgentSeed (https://smithery.ai)
+# Exposes the guardrail MCP server; the skill is bundled in the repository.
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      pythonCommand:
+        type: string
+        title: Python command
+        description: Interpreter used to launch the server (python3 on most systems).
+        default: python3
+  commandFunction: |-
+    (config) => ({
+      command: config.pythonCommand || 'python3',
+      args: ['server/guard_server.py'],
+      env: {}
+    })

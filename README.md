@@ -7,7 +7,7 @@
 A hybrid [Agent Plugins 1.0.0](https://agent-plugins.org) plugin (Skill + MCP Server) that forces spec-driven development and **verifies code before it is marked done** — so "Done, all tests pass" becomes an observed fact, not a claim.
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/weed33834/AgentSeed/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/weed33834/AgentSeed/releases)
 [![Agent Plugins](https://img.shields.io/badge/Agent%20Plugins-1.0.0-purple)](https://agent-plugins.org)
 [![CI](https://github.com/weed33834/AgentSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/AgentSeed/actions)
 [![Stars](https://img.shields.io/github/stars/weed33834/AgentSeed)](https://github.com/weed33834/AgentSeed)
