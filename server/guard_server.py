@@ -25,6 +25,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import guard_engine as engine  # noqa: E402
 
+VERSION = "1.1.0"
+
 
 def _tool(name: str, description: str, props: dict, required: list[str]) -> dict:
     return {
@@ -168,6 +170,10 @@ def _dispatch(method: str, params: dict) -> dict:
     return {"isError": True, "content": [{"type": "text", "text": f"Unsupported method: {method}"}]}
 
 
+def _error(msg_id, code: int, message: str) -> dict:
+    return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
+
+
 def main() -> None:
     for raw in sys.stdin:
         raw = raw.strip()
@@ -181,30 +187,36 @@ def main() -> None:
         msg_id = msg.get("id")
         method = msg.get("method", "")
 
-        if method == "initialize":
-            resp = {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "agentseed", "version": "1.0.0"},
-                },
-            }
-        elif method == "notifications/initialized":
-            continue
-        elif method.startswith("tools/"):
-            payload = _dispatch(method, msg.get("params", {}) or {})
-            resp = {"jsonrpc": "2.0", "id": msg_id, "result": payload}
-        else:
-            resp = {
-                "jsonrpc": "2.0",
-                "id": msg_id,
-                "result": {"capabilities": {}, "serverInfo": {"name": "agentseed", "version": "1.0.0"}},
-            }
+        try:
+            if method == "initialize":
+                resp = {
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "agentseed", "version": VERSION},
+                    },
+                }
+            elif method == "notifications/initialized":
+                continue
+            elif method == "ping":
+                resp = {"jsonrpc": "2.0", "id": msg_id, "result": {}}
+            elif method.startswith("tools/"):
+                payload = _dispatch(method, msg.get("params", {}) or {})
+                resp = {"jsonrpc": "2.0", "id": msg_id, "result": payload}
+            else:
+                # JSON-RPC 2.0 §5.1: unknown methods must be reported as the
+                # error -32601 (Method not found), not as a result.
+                resp = _error(msg_id, -32601, f"Method not found: {method}")
+        except Exception as exc:  # noqa: BLE001 - never kill the session
+            resp = _error(msg_id, -32603, f"Internal error: {exc}")
 
-        sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
-        sys.stdout.flush()
+        try:
+            sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
+            sys.stdout.flush()
+        except BrokenPipeError:
+            return  # client disconnected; exit quietly
 
 
 if __name__ == "__main__":
