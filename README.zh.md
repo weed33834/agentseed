@@ -7,7 +7,7 @@
 基于 [Agent Plugins 1.0.0](https://agent-plugins.org) 规范的混合插件（Skill + MCP 服务器）：强制规范驱动开发，**在代码被标记为"完成"之前先验证**——让 "Done, all tests pass" 变成可观测的事实，而不是一句空话。
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/weed33834/AgentSeed/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue)](https://github.com/weed33834/AgentSeed/releases)
 [![Agent Plugins](https://img.shields.io/badge/Agent%20Plugins-1.0.0-purple)](https://agent-plugins.org)
 [![CI](https://github.com/weed33834/AgentSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/AgentSeed/actions)
 [![Stars](https://img.shields.io/github/stars/weed33834/AgentSeed)](https://github.com/weed33834/AgentSeed)
@@ -40,7 +40,7 @@
 
 ## 它能做什么
 
-五个零依赖 MCP 工具：
+五个 MCP 工具——零*必需*依赖，可选增强：
 
 | 工具 | 拦截什么 | 技术 |
 | --- | --- | --- |
@@ -80,7 +80,7 @@ git clone https://github.com/weed33834/AgentSeed.git
 # 或：https://gitcode.com/badhope/AgentSeed · https://gitee.com/badhope/AgentSeed
 ```
 
-1. 把 `AgentSeed/` 目录丢进任何支持 Agent Plugins 1.0.0 的客户端（Cursor、VS Code、Claude Code、Copilot……）。无需构建、无需安装、零依赖。
+1. 把 `AgentSeed/` 目录丢进任何支持 Agent Plugins 1.0.0 的客户端（Cursor、VS Code、Claude Code、Copilot……）。无需构建、无需安装；核心零依赖（可选增强见下文）。
 2. 客户端从 `plugin.json` + `mcp.json` 自动发现 `verify-before-code` 技能和 `agentseed` MCP 服务器。
 3. **完事。** 技能从此给每个编程任务上锁：契约 → 实现 → 验证 → 证据。
 
@@ -98,6 +98,10 @@ python3 -m unittest discover -s server      # 50+ 个单元测试
 ## 更新日志
 
 见 [CHANGELOG.md](./CHANGELOG.md)。
+
+### 1.3.0（摘要）
+- **模块化**：`guard_engine.py` 拆分为 `server/engine/` 包；用标准库轮子替换手写实现——jsonschema（完整 Draft 2020-12 校验）、pyflakes（F821 未定义名分析）、PyYAML（frontmatter），均为可选，未安装自动回退内置实现。
+- **一致性修复**：技能文本与严重级别模型对齐；版本号从 plugin.json 单源读取；安装脚本去掉推测路径；平台矩阵如实标注。
 
 ### 1.2.0（摘要）
 - **扫描分级**：命中带 `error`/`warning`/`info` 严重级别，默认只有 oversold/fabricated 阻断，TODO 类降为 warning；可通过配置重映射。
@@ -145,7 +149,7 @@ python3 -m unittest discover -s server      # 50+ 个单元测试
 
 **需要特定的大模型吗？** 不需要——与客户端、模型无关。闸门由 skill + MCP 服务器强制，不依赖任何模型。
 
-**零依赖？** 是的。整个 MCP 服务器是纯 Python 标准库。
+**零依赖？** 核心零依赖——不装任何包也能完整运行。可选安装 `server/requirements.txt`（jsonschema / pyflakes / pyyaml）后，`schema_validate` 升级为完整 Draft 2020-12 校验、`verify_code` 获得 pyflakes 分析、frontmatter 解析支持完整 YAML；未安装时自动回退到内置实现。
 
 **符合规范吗？** `check_plugin` 按 1.0.0 §5/§6/§7 校验插件——而 AgentSeed 通过了它自己的 linter（`ok: true`）。
 

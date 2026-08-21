@@ -13,7 +13,8 @@ Tools:
   - scan_hallucination -> scan_hallucination_words
   - check_plugin       -> check_plugin_conformance
   - sandbox_run        -> deterministic command execution (verification channel)
-  - schema_validate    -> JSON Schema subset validator for structured outputs
+  - schema_validate    -> JSON Schema validation (jsonschema when installed,
+                         built-in subset fallback)
 """
 
 from __future__ import annotations
@@ -137,9 +138,10 @@ TOOLS = [
     ),
     _tool(
         "schema_validate",
-        "Validate structured output (JSON) against a JSON Schema subset "
-        "(type/enum/const/minLength/maxLength/pattern/minItems/maxItems/items/"
-        "properties/required/additionalProperties). Zero dependencies.",
+        "Validate structured output (JSON) against a JSON Schema. Uses the "
+        "jsonschema library (Draft 2020-12, full keyword coverage) when "
+        "installed; otherwise falls back to a built-in subset validator. "
+        "Results include which validator ran.",
         {
             "instance": {
                 "description": "The value to validate (any JSON value).",

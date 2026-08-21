@@ -6,7 +6,7 @@ description: >-
   を呼び出し、両方が合格し完了報告に証拠が添付された場合のみ完了とみなす。
   コードの作成・編集・完了宣言のすべての場面で使用する。
 license: MIT
-compatibility: MCP サーバーは Python 3.9+ が必要（純標準ライブラリ、サードパーティ依存なし）。
+compatibility: MCP サーバーは Python 3.9+ が必要。依存ゼロで動作；オプション（jsonschema、pyflakes、pyyaml）で精度向上、未インストール時は自動フォールバック。
 metadata:
   author: AgentSeed
   version: "1.0.0"

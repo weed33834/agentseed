@@ -7,7 +7,7 @@ description: >-
   and the completion report attaches evidence. Use whenever the agent writes,
   edits, or claims completion of code.
 license: MIT
-compatibility: Requires Python 3.9+ for the MCP server (pure standard library, no third-party dependencies).
+compatibility: Requires Python 3.9+ for the MCP server. Zero required dependencies; optional extras (jsonschema, pyflakes, pyyaml) upgrade analysis engines with automatic fallback.
 metadata:
   author: AgentSeed
   version: "1.0.0"
