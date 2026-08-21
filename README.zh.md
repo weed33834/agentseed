@@ -109,6 +109,12 @@ python3 -m unittest discover -s server      # 50+ 个单元测试
 - **CLI**：`server/guard_cli.py` 提供 `verify`/`scan`/`check --ci`/`sandbox`，退出码可直接卡人类 PR。
 - **Linter 对齐 §7.2.1/§9.1**：服务端条目封闭变体校验、保留 env 键、远程 URL 规则。
 
+## 客户端配置（确切片段）
+
+AgentSeed 有两半，完整闸门两者都要装：**技能**（工作流）+ **MCP 服务器**（5 个工具）。
+安装器会装好技能并打印你所用客户端的 MCP 注册命令；各客户端的确切配置片段见
+[README.md · Client setup](./README.md#client-setup--exact-configuration)。
+
 ## 内置护栏库（中 / EN / 日本語）
 
 | 资源 | 内容 |

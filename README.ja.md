@@ -120,6 +120,13 @@ python3 -m unittest discover -s server      # 50+ 個のユニットテスト
 - **CLI:** `server/guard_cli.py` が `verify`/`scan`/`check --ci`/`sandbox` を提供。終了コードで人間の PR もゲート可能。
 - **Linter:** §7.2.1/§9.1 準拠 — サーバーエントリのクローズドバリアント検証、予約 env キー、リモート URL ルール。
 
+## クライアント設定（正確なスニペット）
+
+AgentSeed は二つの要素で構成され、完全なゲートには両方が必要です：**スキル**（ワークフロー）と
+**MCP サーバー**（5 ツール）。インストーラーはスキルを配置し、MCP 登録手順を表示します。
+各クライアントの正確な設定は
+[README.md · Client setup](./README.md#client-setup--exact-configuration) を参照。
+
 ## 内蔵ガードレールライブラリ（日本語 / EN / 中文）
 
 | リソース | 内容 |
