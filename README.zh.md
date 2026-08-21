@@ -88,7 +88,7 @@ git clone https://github.com/weed33834/AgentSeed.git
 
 ```bash
 python3 server/guard_engine.py              # 一致性 + 演示
-python3 -m unittest discover -s server      # 36 个单元测试
+python3 -m unittest discover -s server      # 56 个单元测试
 ```
 
 > **Windows 提示：** `mcp.json` 通过 `python3` 启动服务器。很多 Windows 环境下该别名是
