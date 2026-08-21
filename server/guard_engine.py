@@ -96,6 +96,24 @@ _PLUGIN_NAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9.\-]*[a-z0-9])?$")
 _SKILL_NAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$")
 
 
+# Tokens that are legitimate in common testing/idiomatic contexts and are
+# excluded from matching by default (can be re-enabled via `allowlist`).
+DEFAULT_ALLOWLIST = [
+    "unittest.mock",
+    "Mock(",
+    "MagicMock(",
+    "AsyncMock(",
+    "PropertyMock(",
+    "patch(",
+    "monkeypatch",
+    "mocker",
+]
+
+_IMPORT_LINE_RE = re.compile(
+    r"^\s*(?:from\s+[\w.]+\s+import\b|import\s+\w)", re.IGNORECASE
+)
+
+
 def _token_re(token: str) -> re.Pattern:
     """Build a word-boundary regex for a token (supports multi-word phrases)."""
     escaped = re.escape(token).replace(r"\ ", r"\s+")
@@ -158,11 +176,15 @@ def _ts_defined_symbols(source: str) -> set[str]:
         source,
     ):
         defined.add(m.group(1))
-    # const/let/var declarations
+    # const/let/var declarations — capture the full declarator list so
+    # multi-declarations (`const a = 1, b = 2`) register every name.
     for m in re.finditer(
-        r"\b(?:const|let|var)\s+(" + _TS_IDENT + r")(?:\s*[:=]|\s*$)", source
+        r"\b(?:const|let|var)\s+([^;\n]+)", source
     ):
-        defined.add(m.group(1))
+        for part in m.group(1).split(","):
+            decl = re.match(r"\s*(" + _TS_IDENT + r")(?:\s*[:=]|\s*$)", part)
+            if decl:
+                defined.add(decl.group(1))
     # function parameters — ONLY from real declarations / arrow functions,
     # never from call sites (a call's arguments are not definitions)
     def _add_params(body: str) -> None:
@@ -268,6 +290,18 @@ def detect_undefined_symbols(source: str, language: str = "python") -> dict:
             defined.add(node.name)
         elif isinstance(node, ast.arg):
             defined.add(node.arg)
+        elif isinstance(node, ast.Global) or isinstance(node, ast.Nonlocal):
+            defined.update(node.names)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            defined.add(node.name)
+
+    # Any Name in Store context is a binding: plain assignments
+    # (x = ...), annotated/augmented assignment, for/with/except targets,
+    # walrus expressions, and comprehension variables. Collecting every
+    # Store-context name avoids false positives on ordinary local state.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            defined.add(node.id)
 
     defined |= imported
 
@@ -294,8 +328,16 @@ def detect_undefined_symbols(source: str, language: str = "python") -> dict:
     }
 
 
-def scan_hallucination_words(source: str) -> dict:
+def scan_hallucination_words(source: str, allowlist: list[str] | None = None) -> dict:
     """Scan source for tokens in the grouped hallucination pool.
+
+    To avoid flagging legitimate code, matches are skipped when:
+      - the line is an import statement (``from unittest.mock import Mock``
+        is standard test practice, not a stub marker);
+      - the match is part of a dotted path (``unittest.mock``, ``os.path``);
+      - the matched text starts with an entry of the effective allowlist
+        (defaults to DEFAULT_ALLOWLIST; pass a custom list to override,
+        or an empty list to disable all exclusions).
 
     Returns:
         {
@@ -304,11 +346,22 @@ def scan_hallucination_words(source: str) -> dict:
           "groups": {"stub_code": 2, "oversold": 1, "fabricated": 0}
         }
     """
+    if allowlist is None:
+        allowlist = DEFAULT_ALLOWLIST
     hits: list[dict] = []
     group_counts: dict[str, int] = {g: 0 for g in _GROUP_LABELS}
     for i, line in enumerate(source.splitlines(), start=1):
+        if _IMPORT_LINE_RE.match(line):
+            continue
         for token, group in HALLUCINATION_WORDS.items():
-            if _token_re(token).search(line):
+            for m in _token_re(token).finditer(line):
+                before = line[max(0, m.start() - 1):m.start()]
+                after = line[m.end():m.end() + 1]
+                if before == "." or after == ".":
+                    continue  # part of a dotted path (module/attribute)
+                rest = line[m.start():]
+                if any(rest.lower().startswith(a.lower()) for a in allowlist):
+                    continue
                 hits.append({"word": token, "group": group, "line": i})
                 group_counts[group] += 1
     return {
@@ -351,10 +404,10 @@ def _parse_frontmatter(skill_md_path: str) -> dict:
         return out
     if not content.startswith("---"):
         return out
-    end = content.find("\n---", 3)
-    if end == -1:
+    end_m = re.search(r"^---\s*$", content[3:], re.MULTILINE)
+    if end_m is None:
         return out
-    block = content[3:end]
+    block = content[3:3 + end_m.start()]
     lines = block.splitlines()
     i = 0
     while i < len(lines):
@@ -601,14 +654,29 @@ def _schema_type_ok(value, expected: str) -> bool:
     return True
 
 
+def _json_equal(a, b) -> bool:
+    """JSON-Schema equality: booleans never equal numbers (True != 1)."""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return isinstance(a, bool) and isinstance(b, bool) and a is b
+    return a == b
+
+
 def _validate(instance, schema: dict, path: str, errors: list[str]) -> None:
     """Validate one value against one JSON Schema node (subset)."""
-    if schema.get("type") and not _schema_type_ok(instance, schema["type"]):
-        errors.append(f"{path}: expected type {schema['type']}, got {type(instance).__name__}")
-        return
-    if "enum" in schema and instance not in schema["enum"]:
+    type_spec = schema.get("type")
+    if type_spec is not None:
+        if isinstance(type_spec, list):
+            if not any(_schema_type_ok(instance, t) for t in type_spec):
+                errors.append(
+                    f"{path}: expected type in {type_spec}, got {type(instance).__name__}"
+                )
+                return
+        elif not _schema_type_ok(instance, type_spec):
+            errors.append(f"{path}: expected type {type_spec}, got {type(instance).__name__}")
+            return
+    if "enum" in schema and not any(_json_equal(instance, v) for v in schema["enum"]):
         errors.append(f"{path}: value not in enum {schema['enum']}")
-    if schema.get("const") is not None and instance != schema.get("const"):
+    if "const" in schema and not _json_equal(instance, schema["const"]):
         errors.append(f"{path}: expected const {schema['const']!r}")
     if isinstance(instance, str):
         if "minLength" in schema and len(instance) < schema["minLength"]:
@@ -641,9 +709,9 @@ def _validate(instance, schema: dict, path: str, errors: list[str]) -> None:
 
 
 def schema_validate(instance, schema: dict) -> dict:
-    """Validate an instance against a JSON Schema subset (type/enum/const/
-    minLength/maxLength/pattern/minItems/maxItems/items/properties/required/
-    additionalProperties). Zero dependencies.
+    """Validate an instance against a JSON Schema subset (type incl. type
+    arrays/enum/const/minLength/maxLength/pattern/minItems/maxItems/items/
+    properties/required/additionalProperties). Zero dependencies.
 
     Returns:
         {"valid": bool, "errors": [path messages]}

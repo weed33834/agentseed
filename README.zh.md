@@ -7,7 +7,7 @@
 基于 [Agent Plugins 1.0.0](https://agent-plugins.org) 规范的混合插件（Skill + MCP 服务器）：强制规范驱动开发，**在代码被标记为"完成"之前先验证**——让 "Done, all tests pass" 变成可观测的事实，而不是一句空话。
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/weed33834/AgentSeed/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/weed33834/AgentSeed/releases)
 [![Agent Plugins](https://img.shields.io/badge/Agent%20Plugins-1.0.0-purple)](https://agent-plugins.org)
 [![CI](https://github.com/weed33834/AgentSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/AgentSeed/actions)
 [![Stars](https://img.shields.io/github/stars/weed33834/AgentSeed)](https://github.com/weed33834/AgentSeed)
@@ -88,8 +88,21 @@ git clone https://github.com/weed33834/AgentSeed.git
 
 ```bash
 python3 server/guard_engine.py              # 一致性 + 演示
-python3 -m unittest discover -s server      # 19 个单元测试
+python3 -m unittest discover -s server      # 36 个单元测试
 ```
+
+> **Windows 提示：** `mcp.json` 通过 `python3` 启动服务器。很多 Windows 环境下该别名是
+> Microsoft Store 占位符；若服务器无法启动，请把 `command` 改为
+> `["python", "server/guard_server.py"]` 或解释器的绝对路径。
+
+## 更新日志
+
+### 1.1.0
+- **verify_code（Python）：** 收集全部绑定目标（赋值、`for`/`with`/`except ... as`、海象表达式、推导式、`global`/`nonlocal`）——普通局部变量不再被误判为幻觉符号。
+- **scan_hallucination：** 跳过 import 行与点路径（`unittest.mock`），默认 allowlist 排除标准测试替身；新增可选 `allowlist` 参数可覆盖默认值。
+- **schema_validate：** `const: null` 参与校验；enum/const 相等性区分布尔与数值；支持 `type` 数组形式（如 `["string", "null"]`）。
+- **MCP 服务器：** 未知方法返回 JSON-RPC `-32601`；`ping` 返回空 result；内部错误返回 `-32603` 而不是终止会话。
+- **Linter：** SKILL.md frontmatter 解析容忍正文中的 `---` 行；TS/JS 分析收集多声明符（`const a = 1, b = 2`）。
 
 ## 内置护栏库（中 / EN / 日本語）
 

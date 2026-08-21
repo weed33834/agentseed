@@ -7,7 +7,7 @@
 A hybrid [Agent Plugins 1.0.0](https://agent-plugins.org) plugin (Skill + MCP Server) that forces spec-driven development and **verifies code before it is marked done** — so "Done, all tests pass" becomes an observed fact, not a claim.
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/weed33834/AgentSeed/releases)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/weed33834/AgentSeed/releases)
 [![Agent Plugins](https://img.shields.io/badge/Agent%20Plugins-1.0.0-purple)](https://agent-plugins.org)
 [![CI](https://github.com/weed33834/AgentSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/AgentSeed/actions)
 [![Stars](https://img.shields.io/github/stars/weed33834/AgentSeed)](https://github.com/weed33834/AgentSeed)
@@ -88,8 +88,22 @@ Run it standalone for a self-check:
 
 ```bash
 python3 server/guard_engine.py              # conformance + demos
-python3 -m unittest discover -s server      # 19 unit tests
+python3 -m unittest discover -s server      # 36 unit tests
 ```
+
+> **Windows note:** `mcp.json` launches the server via `python3`. On many
+> Windows installs that alias is a Microsoft Store stub; if the server fails
+> to start, change `command` to `["python", "server/guard_server.py"]` or
+> point it at your interpreter's absolute path.
+
+## Changelog
+
+### 1.1.0
+- **verify_code (Python):** all binding targets are now collected (assignments, `for`/`with`/`except ... as`, walrus, comprehensions, `global`/`nonlocal`) — ordinary local state is no longer flagged as a hallucinated symbol.
+- **scan_hallucination:** import lines and dotted paths (`unittest.mock`) are skipped, and a default allowlist covers standard test doubles; a new optional `allowlist` argument overrides the defaults.
+- **schema_validate:** `const: null` is validated; enum/const equality treats booleans as distinct from numbers; `type` arrays (`["string", "null"]`) are supported.
+- **MCP server:** unknown methods return JSON-RPC `-32601`; `ping` returns an empty result; internal errors return `-32603` instead of killing the session.
+- **Linter:** SKILL.md frontmatter parsing tolerates `---` lines in the document body; TS/JS analysis collects multi-declarations (`const a = 1, b = 2`).
 
 ## Built-in guardrail library (EN / 中文 / 日本語)
 
