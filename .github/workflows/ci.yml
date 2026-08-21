@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install dependencies (full-featured path)
+        run: pip install -r server/requirements.txt
       - name: Run unit tests
         run: python -m unittest discover -s server -p "test_*.py" -v
       - name: CLI smoke — plugin conformance gate
@@ -26,3 +28,35 @@ jobs:
         run: |
           python server/guard_cli.py scan "guaranteed to work" || test $? -eq 1
           python server/guard_cli.py scan "# TODO: later"
+      - name: Skill script smoke (POSIX)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          chmod +x skills/verify-before-code/scripts/check.sh
+          PYTHON=python skills/verify-before-code/scripts/check.sh .
+          bash -n install.sh
+
+  bare:
+    # Zero-dependency fallback path: no pip install at all.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run unit tests (bare environment)
+        run: python -m unittest discover -s server -p "test_*.py" -v
+      - name: Fallback validator is the builtin subset
+        run: |
+          python -c "
+          import sys; sys.path.insert(0, 'server')
+          from engine.schema import schema_validate, _HAS_JSONSCHEMA
+          assert not _HAS_JSONSCHEMA, 'jsonschema should be absent here'
+          r = schema_validate({'name': 'x'}, {'type': 'object', 'required': ['name']})
+          assert r['valid'] and r['validator'] == 'builtin-subset', r
+          print('fallback OK:', r['validator'])
+          "

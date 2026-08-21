@@ -1,7 +1,7 @@
 # AgentSeed installer - download the latest release and drop it into a client.
 # Usage: .\install.ps1 [-Client cursor|claude|opencode|vscode|manual] [-Dir TARGET]
 param(
-    [ValidateSet("auto", "cursor", "claude", "opencode", "vscode", "manual")]
+    [ValidateSet("auto", "claude", "opencode", "cursor", "manual")]
     [string]$Client = "auto",
     [string]$Dir = ""
 )
@@ -38,16 +38,19 @@ try {
     }
 
     switch ($Client) {
-        "cursor"   { Install-To "$HOME\.cursor\extensions\agentseed\agentseed" }
         "claude"   { Install-To "$HOME\.claude\skills\verify-before-code" }
         "opencode" { Install-To "$HOME\.config\opencode\skill\verify-before-code" }
-        "vscode"   { Install-To "$HOME\.vscode\extensions\agentseed\agentseed" }
-        "manual"   { Install-To $(if ($Dir) { $Dir } else { Join-Path $PWD "AgentSeed" }) }
+        "cursor"   {
+            # Cursor has no stable Agent Plugins directory yet - install locally
+            Install-To $(if ($Dir) { $Dir } else { Join-Path $PWD "AgentSeed" })
+            Write-Host "==> Cursor: point your MCP config at this folder's mcp.json and copy skills/verify-before-code into the skills location."
+        }
         default    {
             $dest = if ($Dir) { Join-Path $Dir "AgentSeed" } else { Join-Path $PWD "AgentSeed" }
             Install-To $dest
-            Write-Host "==> done. Drop $dest into your client, or re-run with -Client <name>."
+            Write-Host "==> done. Drop $dest into your client, or re-run with -Client claude|opencode."
         }
+    }
     }
 }
 finally {

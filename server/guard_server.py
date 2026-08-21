@@ -19,11 +19,26 @@ Tools:
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 import guard_engine as engine  # noqa: E402
 
-VERSION = "1.3.0"
+
+def _plugin_version() -> str:
+    """Single source of truth: the version field of the root plugin.json."""
+    pj = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "plugin.json"
+    )
+    try:
+        with open(pj, encoding="utf-8") as fh:
+            version = json.load(fh).get("version")
+            return version if isinstance(version, str) else "0.0.0"
+    except (OSError, ValueError):
+        return "0.0.0"
+
+
+VERSION = _plugin_version()
 
 # Loaded once at startup: AGENTSEED_CONFIG env, ${PLUGIN_DATA}/
 # agentseed.config.json (Agent Plugins v1.0.0 §9.1), or ./agentseed.config.json.
@@ -66,8 +81,11 @@ TOOLS = [
         "scan_hallucination",
         "Scan source for hallucination signals in three groups: stub_code "
         "(stub/mock/fake/placeholder/todo/...), oversold (guaranteed/all tests "
-        "pass/production ready/...), fabricated (simulated/invented/...). If "
-        "any hit is found, the task must be downgraded to incomplete.",
+        "pass/production ready/...), fabricated (simulated/invented/...). "
+        "Each hit carries a severity; only error-severity hits set "
+        "'blocking': true. A blocking result means the task is NOT done — "
+        "fix the flagged lines or downgrade deliberately via config. "
+        "Warning/info hits must be reported but do not block completion.",
         {
             "source": {"type": "string", "description": "Source code to scan."},
             "allowlist": {

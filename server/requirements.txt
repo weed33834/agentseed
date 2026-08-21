@@ -1,5 +1,7 @@
 # AgentSeed MCP server external dependencies.
 # jsonschema — replaces the former hand-rolled JSON Schema subset validator.
 # pyflakes  — optional, used by symbols.py for more accurate Python AST analysis.
+# pyyaml    — optional, full YAML frontmatter parsing (lite fallback built in).
 jsonschema>=4.0.0
 pyflakes>=3.0.0
+pyyaml>=6.0.0

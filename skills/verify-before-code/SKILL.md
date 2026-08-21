@@ -68,20 +68,23 @@ scan_hallucination(source=<final source>)
 Decision rules:
 
 - `verify_code` returns `suspects: []` AND `scan_hallucination` returns
-  `clean: true` → verification gate passed.
+  `blocking: false` → verification gate passed.
 - `verify_code` returns any suspect (a symbol used/called but never defined or
   imported) → you likely hallucinated an API. Fix it (import it, define it, or
   replace it with a real call) and re-run.
-- `scan_hallucination` returns hits. Check the `group` field:
-  - `stub_code` → the task is **not** done; replace the placeholder with real
-    code and re-run.
-  - `oversold` → an unverified confidence claim (e.g. "all tests pass",
-    "production ready"). Attach evidence or rephrase; re-run.
-  - `fabricated` → invented/simulated content; remove or ground it; re-run.
+- `scan_hallucination` returns hits. Severity decides what happens — check the
+  `severity` field first:
+  - `error` (any hit) → `blocking: true`; the task is **not** done. Fix the
+    flagged lines and re-run. By default `oversold` and `fabricated` are
+    errors: attach evidence or remove the claim/content.
+  - `warning` (e.g. default for `stub_code`) → does not block, but you must
+    mention it in the completion report; if it marks genuinely unfinished work,
+    treat it like an error.
+  - `info` → informational only; no action required.
 
-Never mark a coding task complete while either tool still reports a problem. If
-you cannot resolve a flag, report it explicitly to the user instead of claiming
-success.
+Never mark a coding task complete while either tool still reports a *blocking*
+problem (`suspects` non-empty or `blocking: true`). If you cannot resolve a
+flag, report it explicitly to the user instead of claiming success.
 
 Execution and structure are verified the same way — as observed facts, not
 claims:

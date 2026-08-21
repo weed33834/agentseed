@@ -60,21 +60,21 @@ scan_hallucination(source=<最終ソース>)
 
 判定ルール：
 
-- `verify_code` が `suspects: []` かつ `scan_hallucination` が `clean: true`
+- `verify_code` が `suspects: []` かつ `scan_hallucination` が `blocking: false`
   → 検証ゲート通過。
 - `verify_code` に suspect（未定義/未インポートのシンボル）→ API を幻覚した可能性。
   修正（インポート・定義・実在の呼び出しへ置換）して再実行。
-- `scan_hallucination` のヒットは `group` フィールドで判断：
-  - `stub_code` → タスクは**未完了**。プレースホルダーを実コードに置換して再実行。
-  - `oversold` → 未検証の自信主張（例："all tests pass"）。証拠を添付するか
-    言い直して再実行。
-  - `fabricated` → 捏造/シミュレート内容。削除または根拠付けして再実行。
+- `scan_hallucination` のヒットはまず `severity` フィールドで判断：
+  - `error`（任意のヒット）→ `blocking: true`、タスクは**未完了**。指摘された行を
+    修正して再実行。既定で `oversold` と `fabricated` は error：証拠を添付するか
+    主張/内容を削除する。
+  - `warning`（例：`stub_code` の既定）→ ブロックはしないが完了報告に必ず記載。
+    実際に未完了の作業を示す場合は error として扱う。
+  - `info` → 情報提供のみ、対応不要。
 
-さらに、実行を伴う主張（テスト合格・型チェック・linter）は `sandbox_run` で実証し、
-構造化出力は `schema_validate` でスキーマ検証します。
-
-どちらかのツールが問題を報告している間は、タスク完了と絶対にマークしないでください。
-解消できない場合は成功を主張せず、ユーザーに明示的に報告します。
+**ブロック中**の問題（`suspects` 非空または `blocking: true`）が残っている間は、
+タスク完了と絶対にマークしないでください。解消できない場合は成功を主張せず、
+ユーザーに明示的に報告します。
 
 ## ゲート 4 — 最終メッセージ前の言語監査
 
