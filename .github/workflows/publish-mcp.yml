@@ -1,0 +1,55 @@
+name: Publish
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  npm:
+    # Publishes the npm wrapper (agentseed-mcp). The publish step is skipped
+    # until the NPM_TOKEN secret is configured once; the job still succeeds.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      published: ${{ steps.publish.outcome }}
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          registry-url: "https://registry.npmjs.org"
+      - id: publish
+        name: Publish to npm
+        if: env.HAS_NPM_TOKEN == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Skip notice
+        if: env.HAS_NPM_TOKEN != 'true'
+        run: echo "::notice::NPM_TOKEN secret not configured - npm publish skipped. Add the secret once to enable automated publishing."
+
+  mcp-registry:
+    # Official MCP Registry (registry.modelcontextprotocol.io).
+    # GitHub OIDC auth: no stored token needed. Requires the npm package of
+    # the same version to exist (the registry cross-validates it), so this
+    # only publishes when the npm step actually ran.
+    needs: npm
+    if: needs.npm.outputs.published == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - name: Authenticate via GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+      - name: Sync server.json version with tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > s.tmp && mv s.tmp server.json
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
