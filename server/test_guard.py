@@ -8,6 +8,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import guard_engine as engine  # noqa: E402
 
 PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# sys.executable works on every platform; the literal "python3" does not
+# exist on many Windows installs (the WindowsApps alias is a Store stub).
+PY = sys.executable
 
 
 class TestUndefinedSymbols(unittest.TestCase):
@@ -171,12 +174,12 @@ class TestConformance(unittest.TestCase):
 
 class TestSandboxRun(unittest.TestCase):
     def test_runs_command(self):
-        r = engine.sandbox_run(["python3", "-c", "print(6*7)"], 10)
+        r = engine.sandbox_run([PY, "-c", "print(6*7)"], 10)
         self.assertEqual(r["exit_code"], 0)
         self.assertIn("42", r["stdout"])
 
     def test_timeout_safety(self):
-        r = engine.sandbox_run(["python3", "-c", "import time; time.sleep(30)"], 1)
+        r = engine.sandbox_run([PY, "-c", "import time; time.sleep(30)"], 1)
         self.assertTrue(r["timed_out"])
 
 
