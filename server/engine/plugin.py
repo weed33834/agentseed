@@ -67,21 +67,34 @@ def _parse_plugin_json(plugin_dir: str) -> tuple[dict, list[str]]:
 def _parse_frontmatter(skill_md_path: str) -> dict:
     """Extract name/description from a SKILL.md frontmatter block.
 
-    Zero-dependency YAML-lite parser: handles ``key: value`` and folded
-    scalars (``description: >-`` followed by indented lines).
+    Uses PyYAML when available for full YAML coverage (nested maps, lists,
+    quoting rules); falls back to a zero-dependency YAML-lite parser that
+    handles ``key: value`` and folded scalars (``description: >-`` followed
+    by indented lines).
     """
-    out: dict = {}
     try:
         with open(skill_md_path, encoding="utf-8") as fh:
             content = fh.read()
     except OSError:
-        return out
+        return {}
     if not content.startswith("---"):
-        return out
+        return {}
     end_m = re.search(r"^---\s*$", content[3:], re.MULTILINE)
     if end_m is None:
-        return out
+        return {}
     block = content[3:3 + end_m.start()]
+
+    try:
+        import yaml  # type: ignore import-not-found
+
+        parsed = yaml.safe_load(block)
+        return parsed if isinstance(parsed, dict) else {}
+    except ImportError:
+        pass
+    except Exception:  # malformed YAML -> fall through to the lite parser
+        pass
+
+    out: dict = {}
     lines = block.splitlines()
     i = 0
     while i < len(lines):
