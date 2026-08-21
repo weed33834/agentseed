@@ -176,11 +176,15 @@ def _ts_defined_symbols(source: str) -> set[str]:
         source,
     ):
         defined.add(m.group(1))
-    # const/let/var declarations
+    # const/let/var declarations — capture the full declarator list so
+    # multi-declarations (`const a = 1, b = 2`) register every name.
     for m in re.finditer(
-        r"\b(?:const|let|var)\s+(" + _TS_IDENT + r")(?:\s*[:=]|\s*$)", source
+        r"\b(?:const|let|var)\s+([^;\n]+)", source
     ):
-        defined.add(m.group(1))
+        for part in m.group(1).split(","):
+            decl = re.match(r"\s*(" + _TS_IDENT + r")(?:\s*[:=]|\s*$)", part)
+            if decl:
+                defined.add(decl.group(1))
     # function parameters — ONLY from real declarations / arrow functions,
     # never from call sites (a call's arguments are not definitions)
     def _add_params(body: str) -> None:
@@ -400,10 +404,10 @@ def _parse_frontmatter(skill_md_path: str) -> dict:
         return out
     if not content.startswith("---"):
         return out
-    end = content.find("\n---", 3)
-    if end == -1:
+    end_m = re.search(r"^---\s*$", content[3:], re.MULTILINE)
+    if end_m is None:
         return out
-    block = content[3:end]
+    block = content[3:3 + end_m.start()]
     lines = block.splitlines()
     i = 0
     while i < len(lines):

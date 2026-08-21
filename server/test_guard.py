@@ -46,6 +46,11 @@ class TestUndefinedSymbols(unittest.TestCase):
         self.assertIn("helper", r["suspects"])
         self.assertIn("wrap", r["suspects"])
 
+    def test_ts_multi_declaration_collected(self):
+        src = "const a = 1, b = 2;\nconsole.log(a + b);\n"
+        r = engine.detect_undefined_symbols(src, "typescript")
+        self.assertEqual(r["suspects"], [])
+
     def test_python_module_dunders_not_flagged(self):
         src = 'if __name__ == "__main__":\n    print(__file__, __doc__)\n'
         r = engine.detect_undefined_symbols(src, "python")
@@ -139,6 +144,19 @@ class TestConformance(unittest.TestCase):
     def test_self_conformant(self):
         r = engine.check_plugin_conformance(PLUGIN_ROOT)
         self.assertTrue(r["ok"], r)
+
+    def test_frontmatter_with_dashes_in_body(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            skill_dir = os.path.join(d, "skills", "demo-skill")
+            os.makedirs(skill_dir)
+            with open(os.path.join(skill_dir, "SKILL.md"), "w", encoding="utf-8") as fh:
+                fh.write("---\nname: demo-skill\ndescription: ok\n---\n\n---\nnot frontmatter\n")
+            # body containing a '---' line must not corrupt the parse
+            r = engine.check_plugin_conformance(d)
+            self.assertEqual(
+                [e for e in r["errors"] if "demo-skill" in e], [], r["errors"]
+            )
 
     def test_rejects_bad_repository_type(self):
         import tempfile
