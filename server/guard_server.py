@@ -63,6 +63,13 @@ TOOLS = [
         "any hit is found, the task must be downgraded to incomplete.",
         {
             "source": {"type": "string", "description": "Source code to scan."},
+            "allowlist": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Optional case-insensitive prefixes to exclude "
+                "from matching (e.g. ['Mock(']). Defaults to built-in test-idiom "
+                "exclusions; pass [] to disable all exclusions.",
+            },
         },
         ["source"],
     ),
@@ -133,7 +140,9 @@ def _dispatch(method: str, params: dict) -> dict:
                 args.get("source", ""), args.get("language", "python")
             )
         elif name == "scan_hallucination":
-            result = engine.scan_hallucination_words(args.get("source", ""))
+            result = engine.scan_hallucination_words(
+                args.get("source", ""), args.get("allowlist")
+            )
         elif name == "check_plugin":
             result = engine.check_plugin_conformance(args.get("path", ""))
         elif name == "sandbox_run":

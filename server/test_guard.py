@@ -112,6 +112,28 @@ class TestHallucinationScan(unittest.TestCase):
         r = engine.scan_hallucination_words("import os\nprint(os.getcwd())\n")
         self.assertTrue(r["clean"])
 
+    def test_unittest_mock_not_flagged(self):
+        src = "from unittest.mock import Mock\nm = Mock()\nm.fake_method.return_value = 1\n"
+        r = engine.scan_hallucination_words(src)
+        self.assertTrue(r["clean"], r["hits"])
+
+    def test_dotted_path_not_flagged(self):
+        r = engine.scan_hallucination_words("import unittest.mock\nresult = unittest.mock.call(x)\n")
+        self.assertTrue(r["clean"], r["hits"])
+
+    def test_real_stub_still_flagged(self):
+        src = "def run():\n    return stub_result  # TODO: replace with real call\n"
+        r = engine.scan_hallucination_words(src)
+        self.assertFalse(r["clean"])
+
+    def test_allowlist_override(self):
+        src = "m = Mock()\nthis is a fake thing\n"
+        strict = engine.scan_hallucination_words(src, allowlist=[])
+        self.assertFalse(strict["clean"])
+        relaxed = engine.scan_hallucination_words(src)
+        self.assertTrue(any(h["word"] == "fake" for h in relaxed["hits"]))
+        self.assertTrue(all(h["word"] != "mock" for h in relaxed["hits"]))
+
 
 class TestConformance(unittest.TestCase):
     def test_self_conformant(self):

@@ -96,6 +96,24 @@ _PLUGIN_NAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9.\-]*[a-z0-9])?$")
 _SKILL_NAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$")
 
 
+# Tokens that are legitimate in common testing/idiomatic contexts and are
+# excluded from matching by default (can be re-enabled via `allowlist`).
+DEFAULT_ALLOWLIST = [
+    "unittest.mock",
+    "Mock(",
+    "MagicMock(",
+    "AsyncMock(",
+    "PropertyMock(",
+    "patch(",
+    "monkeypatch",
+    "mocker",
+]
+
+_IMPORT_LINE_RE = re.compile(
+    r"^\s*(?:from\s+[\w.]+\s+import\b|import\s+\w)", re.IGNORECASE
+)
+
+
 def _token_re(token: str) -> re.Pattern:
     """Build a word-boundary regex for a token (supports multi-word phrases)."""
     escaped = re.escape(token).replace(r"\ ", r"\s+")
@@ -306,8 +324,16 @@ def detect_undefined_symbols(source: str, language: str = "python") -> dict:
     }
 
 
-def scan_hallucination_words(source: str) -> dict:
+def scan_hallucination_words(source: str, allowlist: list[str] | None = None) -> dict:
     """Scan source for tokens in the grouped hallucination pool.
+
+    To avoid flagging legitimate code, matches are skipped when:
+      - the line is an import statement (``from unittest.mock import Mock``
+        is standard test practice, not a stub marker);
+      - the match is part of a dotted path (``unittest.mock``, ``os.path``);
+      - the matched text starts with an entry of the effective allowlist
+        (defaults to DEFAULT_ALLOWLIST; pass a custom list to override,
+        or an empty list to disable all exclusions).
 
     Returns:
         {
@@ -316,11 +342,22 @@ def scan_hallucination_words(source: str) -> dict:
           "groups": {"stub_code": 2, "oversold": 1, "fabricated": 0}
         }
     """
+    if allowlist is None:
+        allowlist = DEFAULT_ALLOWLIST
     hits: list[dict] = []
     group_counts: dict[str, int] = {g: 0 for g in _GROUP_LABELS}
     for i, line in enumerate(source.splitlines(), start=1):
+        if _IMPORT_LINE_RE.match(line):
+            continue
         for token, group in HALLUCINATION_WORDS.items():
-            if _token_re(token).search(line):
+            for m in _token_re(token).finditer(line):
+                before = line[max(0, m.start() - 1):m.start()]
+                after = line[m.end():m.end() + 1]
+                if before == "." or after == ".":
+                    continue  # part of a dotted path (module/attribute)
+                rest = line[m.start():]
+                if any(rest.lower().startswith(a.lower()) for a in allowlist):
+                    continue
                 hits.append({"word": token, "group": group, "line": i})
                 group_counts[group] += 1
     return {
