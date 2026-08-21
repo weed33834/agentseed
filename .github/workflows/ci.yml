@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
           python server/guard_cli.py scan "guaranteed to work" || test $? -eq 1
           python server/guard_cli.py scan "# TODO: later"
       - name: Skill script smoke (POSIX)
-        if: runner.os == 'Linux'
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           chmod +x skills/verify-before-code/scripts/check.sh
