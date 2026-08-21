@@ -55,6 +55,19 @@ verify_code(source=<最终源码>, language="python")
 scan_hallucination(source=<最终源码>)
 ```
 
+**如果本会话中没有 `agentseed` MCP 工具**，不要跳过验证——降级为用 shell 直接调
+CLI 等价命令：
+
+```bash
+python <agentseed插件根>/server/guard_cli.py verify <改动文件> --language python
+python <agentseed插件根>/server/guard_cli.py scan  "<最终源码或文件>"
+```
+
+`<agentseed插件根>` 的定位顺序：`AGENTSEED_PLUGIN_ROOT` 环境变量；本技能目录旁的
+`.agentseed-plugin-root` 文件；从本技能目录向上查找，直到找到同时包含 `plugin.json`
+和 `server/guard_cli.py` 的目录。CLI 使用同样的闸门规则：退出码 0 = 通过，
+1 = 存在阻断性发现。
+
 判定规则：
 
 - `verify_code` 返回 `suspects: []` 且 `scan_hallucination` 返回 `blocking: false`

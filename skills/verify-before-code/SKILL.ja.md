@@ -58,6 +58,19 @@ verify_code(source=<最終ソース>, language="python")
 scan_hallucination(source=<最終ソース>)
 ```
 
+**このセッションに `agentseed` MCP ツールがない場合**、検証をスキップせず —
+シェルから CLI の同等コマンドに降格します：
+
+```bash
+python <agentseedプラグインルート>/server/guard_cli.py verify <変更ファイル> --language python
+python <agentseedプラグインルート>/server/guard_cli.py scan  "<最終ソースまたはファイル>"
+```
+
+`<agentseedプラグインルート>` の特定順序：`AGENTSEED_PLUGIN_ROOT` 環境変数 →
+本スキルディレクトリ直下の `.agentseed-plugin-root` ファイル → 本スキルから上方向に
+`plugin.json` と `server/guard_cli.py` を両方含むディレクトリを探索。CLI は同じ
+ゲート規則です：終了コード 0 = 合格、1 = ブロッキングな指摘あり。
+
 判定ルール：
 
 - `verify_code` が `suspects: []` かつ `scan_hallucination` が `blocking: false`

@@ -131,6 +131,25 @@ pip install -r server/requirements.txt
 | `pyflakes` | `verify_code` → pyflakes F821 undefined-name analysis | built-in AST walk |
 | `pyyaml` | SKILL.md frontmatter parsing → full YAML | built-in lite parser |
 
+> Use an absolute path to `guard_server.py`; the server resolves everything
+> else from its own location, so no special cwd is required.
+
+## Compatibility & graceful degradation
+
+AgentSeed adapts to whatever the host supports, degrading one level at a time
+— never silently skipping verification:
+
+| Host capability | What you get | Setup |
+| --- | --- | --- |
+| Full Agent Plugins 1.0.0 | drop-in: skill + MCP auto-discovered, `${PLUGIN_DATA}` config honored | copy the plugin directory |
+| MCP-capable client | all 5 tools via registration | exact snippets above |
+| Skills-only client | skill workflow; **verification degrades to `guard_cli.py` via shell** (the skill contains the fallback instructions) | copy `skills/verify-before-code` flat |
+| Plain terminal / CI / no agent at all | CLI gates with exit codes | `python server/guard_cli.py check . --ci` |
+
+The skill itself carries the degradation path: when the MCP tools are absent,
+it instructs the agent to run `guard_cli.py verify/scan` through the shell and
+apply the same blocking rules to exit codes.
+
 ## Platform support
 
 | Client | Agent Plugins 1.0.0 | Status | Notes |

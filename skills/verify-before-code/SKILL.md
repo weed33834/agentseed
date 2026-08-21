@@ -65,6 +65,20 @@ verify_code(source=<final source>, language="python")
 scan_hallucination(source=<final source>)
 ```
 
+**If the `agentseed` MCP tools are not available in this session**, do NOT
+skip verification — degrade to the CLI equivalents via the shell:
+
+```bash
+python <agentseed-plugin-root>/server/guard_cli.py verify <changed-file> --language python
+python <agentseed-plugin-root>/server/guard_cli.py scan  "<final source or file>"
+```
+
+Locate `<agentseed-plugin-root>` by (in order): the `AGENTSEED_PLUGIN_ROOT`
+environment variable; a `.agentseed-plugin-root` file next to this skill;
+walking up from this skill's directory until you find a directory containing
+both `plugin.json` and `server/guard_cli.py`. The CLI uses the same gate
+rules: exit code 0 = pass, 1 = blocking findings.
+
 Decision rules:
 
 - `verify_code` returns `suspects: []` AND `scan_hallucination` returns

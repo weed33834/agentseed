@@ -3,6 +3,13 @@
 All notable changes to AgentSeed are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com); versioning follows [SemVer](https://semver.org).
 
+## [1.3.3] — 2026-08
+
+### Added
+- **Compatibility & graceful-degradation matrix** in the READMEs: full Agent Plugins clients (drop-in) → MCP-only clients → skills-only clients → plain terminal/CI, each with a defined setup path.
+- **CLI fallback built into the skill**: when the `agentseed` MCP tools are not registered in the session, SKILL.md/zh/ja now instruct the agent to run `guard_cli.py verify/scan` via the shell and apply the same blocking rules — verification is never silently skipped.
+- CI: `macos-latest` added to the test matrix; POSIX skill-script smoke now runs on macOS too.
+
 ## [1.3.2] — 2026-08
 
 ### Fixed
