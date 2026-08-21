@@ -10,6 +10,9 @@ here="$(cd "$(dirname "$0")" && pwd)"
 cli=""
 if [ -n "$AGENTSEED_PLUGIN_ROOT" ] && [ -f "$AGENTSEED_PLUGIN_ROOT/server/guard_cli.py" ]; then
   cli="$AGENTSEED_PLUGIN_ROOT/server/guard_cli.py"
+elif [ -f "$here/.agentseed-plugin-root" ]; then
+  root="$(cat "$here/.agentseed-plugin-root")"
+  [ -f "$root/server/guard_cli.py" ] && cli="$root/server/guard_cli.py"
 else
   d="$here"
   for _ in 1 2 3 4 5; do

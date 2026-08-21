@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Agent Plugins specification
+    url: https://agent-plugins.org/specification
+    about: Normative spec for the plugin format (§5 manifest, §7 components, §9 placeholders)
+  - name: Questions & ideas
+    url: https://github.com/weed33834/AgentSeed/discussions
+    about: Not sure it is a bug? Ask here first.

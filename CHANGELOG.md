@@ -3,6 +3,17 @@
 All notable changes to AgentSeed are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com); versioning follows [SemVer](https://semver.org).
 
+## [1.3.1] — 2026-08
+
+### Fixed
+- **Installers rewired after an end-to-end fresh-clone audit**: full plugin now lives at a stable home (~/.agentseed/AgentSeed) so the MCP server path never breaks; skill is copied *flat* (SKILL.md at the top level) so clients that scan one level deep actually discover it; installer prints the exact MCP registration step for claude/opencode/cursor.
+- Skill scripts resolve guard_cli.py via AGENTSEED_PLUGIN_ROOT, a .agentseed-plugin-root pointer file written by the installer, or directory walk-up.
+- install.ps1: replaced PowerShell 7-only ?? operator (parse error on Windows PowerShell 5.1).
+
+### Added
+- Community files: CONTRIBUTING.md, bug/feature issue templates, pull request template.
+- READMEs: exact per-client configuration snippets (Claude Code, opencode, generic MCP).
+
 ## [1.3.0] — 2026-08
 
 ### Changed — modular engine, standard libraries over hand-rolled code

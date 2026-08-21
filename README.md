@@ -148,6 +148,46 @@ by the maintainers. If you verify one, open a PR updating this table.
 Clients honoring the full spec also set `${PLUGIN_DATA}`; AgentSeed reads
 `agentseed.config.json` from there (allowlist, severity map, sandbox timeout).
 
+## Client setup — exact configuration
+
+AgentSeed has two halves; both are needed for the full gate:
+
+1. **Skill** (`skills/verify-before-code/`) — teaches the agent the workflow.
+2. **MCP server** (`server/guard_server.py`) — provides the 5 tools.
+
+The installers wire step 1 and print step 2 for your client. Manual setup:
+
+**Claude Code**
+
+```bash
+# skill: copy it flat so SKILL.md sits directly in the folder
+cp -R skills/verify-before-code ~/.claude/skills/verify-before-code
+# MCP server:
+claude mcp add agentseed -- python /path/to/AgentSeed/server/guard_server.py
+```
+
+**opencode** — copy `skills/verify-before-code/` to
+`~/.config/opencode/skill/verify-before-code`, then add to `opencode.json`:
+
+```json
+{
+  "mcp": {
+    "agentseed": {
+      "type": "local",
+      "command": ["python", "/path/to/AgentSeed/server/guard_server.py"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**Cursor / other MCP clients** — register a stdio server with
+`command: python`, `args: ["/path/to/AgentSeed/server/guard_server.py"]`,
+and copy the skill folder per your client's skills location.
+
+> Use an absolute path to `guard_server.py`; the server resolves everything
+> else from its own location, so no special cwd is required.
+
 ## Changelog
 
 See [CHANGELOG.md](./CHANGELOG.md).

@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# AgentSeed installer - download the latest release and drop it into a client.
+# AgentSeed installer - download the latest release and wire it into a client.
+#
 # Usage: ./install.sh [--client claude|opencode|cursor|manual] [--dir TARGET]
+#
+# Layout after install:
+#   ~/.agentseed/AgentSeed/            full plugin (MCP server lives here)
+#   <client skill dir>/                flat skill copy (SKILL.md at top level)
+#
+# The installer prints the exact MCP registration step for your client.
 set -e
 repo="weed33834/AgentSeed"
 client="auto"
@@ -27,25 +34,56 @@ unzip -q "$tmp/agentseed.zip" -d "$tmp/x"
 src=$(dirname "$(find "$tmp/x" -name plugin.json | head -1)")
 [ -n "$src" ] || { echo "plugin.json not found in archive" >&2; exit 1; }
 
-install_to() {
-  mkdir -p "$(dirname "$1")"
+# 1) stable full-plugin home (the MCP server runs from here)
+plugin_home="${AGENTSEED_HOME:-$HOME/.agentseed}/AgentSeed"
+mkdir -p "$(dirname "$plugin_home")"
+rm -rf "$plugin_home"
+cp -R "$src" "$plugin_home"
+echo "==> full plugin installed to $plugin_home"
+
+# 2) flat skill copy so clients that scan <dir>/SKILL.md find it
+install_skill() {
+  mkdir -p "$1"
   rm -rf "$1"
-  cp -R "$src" "$1"
-  echo "==> installed to $1"
+  mkdir -p "$1"
+  cp -R "$plugin_home/skills/verify-before-code/"* "$1/"
+  printf '%s' "$plugin_home" > "$1/.agentseed-plugin-root"
+  echo "==> skill installed to $1"
 }
 
 case "$client" in
-  claude)   install_to "$HOME/.claude/skills/verify-before-code" ;;
-  opencode) install_to "$HOME/.config/opencode/skill/verify-before-code" ;;
+  claude)
+    install_skill "$HOME/.claude/skills/verify-before-code"
+    echo ""
+    echo "==> final step - register the MCP server:"
+    echo "    claude mcp add agentseed -- python \"$plugin_home/server/guard_server.py\""
+    ;;
+  opencode)
+    install_skill "$HOME/.config/opencode/skill/verify-before-code"
+    echo ""
+    echo "==> final step - add to ~/.config/opencode/opencode.json:"
+    cat <<EOF
+    "mcp": {
+      "agentseed": {
+        "type": "local",
+        "command": ["python", "$plugin_home/server/guard_server.py"],
+        "enabled": true
+      }
+    }
+EOF
+    ;;
   cursor)
-    # Cursor has no stable Agent Plugins directory yet - install locally
-    dest="${dir:-$PWD}/AgentSeed"
-    install_to "$dest"
-    echo "==> Cursor: point your MCP config at this folder's mcp.json and copy skills/verify-before-code into the skills location."
+    echo "==> Cursor has no stable Agent Plugins directory yet."
+    echo "    Plugin kept at: $plugin_home"
+    echo "    Register the MCP server in Cursor settings:"
+    echo "      command: python  args: [$plugin_home/server/guard_server.py]"
     ;;
   manual|auto)
     dest="${dir:-$PWD}/AgentSeed"
-    install_to "$dest"
-    echo "==> done. Drop $dest into your client, or re-run with --client claude|opencode."
+    mkdir -p "$(dirname "$dest")"
+    rm -rf "$dest"
+    cp -R "$src" "$dest"
+    echo "==> plugin copied to $dest"
+    echo "==> done. Drop it into your client, or re-run with --client claude|opencode."
     ;;
 esac
