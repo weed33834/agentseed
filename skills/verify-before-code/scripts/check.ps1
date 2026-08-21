@@ -14,8 +14,10 @@ $cli = $null
 if ($env:AGENTSEED_PLUGIN_ROOT -and (Test-Path (Join-Path $env:AGENTSEED_PLUGIN_ROOT "server\guard_cli.py"))) {
     $cli = Join-Path $env:AGENTSEED_PLUGIN_ROOT "server\guard_cli.py"
 }
-elseif (Test-Path (Join-Path $here ".agentseed-plugin-root")) {
-    $root = (Get-Content (Join-Path $here ".agentseed-plugin-root") -Raw).Trim()
+elseif ((Test-Path (Join-Path $here ".agentseed-plugin-root")) -or (Test-Path (Join-Path $here "..\.agentseed-plugin-root"))) {
+    $pf = Join-Path $here ".agentseed-plugin-root"
+    if (-not (Test-Path $pf)) { $pf = Join-Path $here "..\.agentseed-plugin-root" }
+    $root = (Get-Content $pf -Raw).Trim()
     if ($root -and (Test-Path (Join-Path $root "server\guard_cli.py"))) {
         $cli = Join-Path $root "server\guard_cli.py"
     }
