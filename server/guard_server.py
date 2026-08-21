@@ -19,11 +19,26 @@ Tools:
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 import guard_engine as engine  # noqa: E402
 
-VERSION = "1.3.0"
+
+def _plugin_version() -> str:
+    """Single source of truth: the version field of the root plugin.json."""
+    pj = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "plugin.json"
+    )
+    try:
+        with open(pj, encoding="utf-8") as fh:
+            version = json.load(fh).get("version")
+            return version if isinstance(version, str) else "0.0.0"
+    except (OSError, ValueError):
+        return "0.0.0"
+
+
+VERSION = _plugin_version()
 
 # Loaded once at startup: AGENTSEED_CONFIG env, ${PLUGIN_DATA}/
 # agentseed.config.json (Agent Plugins v1.0.0 §9.1), or ./agentseed.config.json.
