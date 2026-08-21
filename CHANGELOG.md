@@ -3,6 +3,11 @@
 All notable changes to AgentSeed are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com); versioning follows [SemVer](https://semver.org).
 
+## [1.3.2] — 2026-08
+
+### Fixed
+- Skill scripts check `.agentseed-plugin-root` at both the `scripts/` and skill-root level; the v1.3.1 installers shipped scripts that missed the skill-root copy, so freshly installed check.ps1/check.sh still could not locate guard_cli.py. Verified against a real installer run.
+
 ## [1.3.1] — 2026-08
 
 ### Fixed
