@@ -328,7 +328,25 @@ def detect_undefined_symbols(source: str, language: str = "python") -> dict:
     }
 
 
-def scan_hallucination_words(source: str, allowlist: list[str] | None = None) -> dict:
+# Default severity per signal group. Tunable via config (see load_config):
+#   error   -> blocks completion
+#   warning -> reported, does not block
+#   info    -> informational only
+# stub_code defaults to warning: TODO/WIP markers are common in legitimate
+# work-in-progress sections; oversold/fabricated claims are always suspect.
+DEFAULT_SEVERITIES: dict[str, str] = {
+    "stub_code": "warning",
+    "oversold": "error",
+    "fabricated": "error",
+}
+_VALID_SEVERITIES = {"error", "warning", "info"}
+
+
+def scan_hallucination_words(
+    source: str,
+    allowlist: list[str] | None = None,
+    severities: dict[str, str] | None = None,
+) -> dict:
     """Scan source for tokens in the grouped hallucination pool.
 
     To avoid flagging legitimate code, matches are skipped when:
@@ -339,17 +357,31 @@ def scan_hallucination_words(source: str, allowlist: list[str] | None = None) ->
         (defaults to DEFAULT_ALLOWLIST; pass a custom list to override,
         or an empty list to disable all exclusions).
 
+    Each hit carries a severity (``error`` | ``warning`` | ``info``) taken
+    from ``severities`` (group -> severity), falling back to
+    DEFAULT_SEVERITIES. ``blocking`` reports whether any error-severity hit
+    exists; warnings/info never block completion on their own.
+
     Returns:
         {
-          "hits": [{"word": "stub", "group": "stub_code", "line": 12}, ...],
+          "hits": [{"word": "stub", "group": "stub_code", "line": 12,
+                    "severity": "warning"}, ...],
           "clean": bool,
-          "groups": {"stub_code": 2, "oversold": 1, "fabricated": 0}
+          "blocking": bool,
+          "groups": {"stub_code": 2, "oversold": 1, "fabricated": 0},
+          "severities": {"error": 1, "warning": 2, "info": 0}
         }
     """
     if allowlist is None:
         allowlist = DEFAULT_ALLOWLIST
+    sev = dict(DEFAULT_SEVERITIES)
+    if severities:
+        for g, s in severities.items():
+            if g in _GROUP_LABELS and s in _VALID_SEVERITIES:
+                sev[g] = s
     hits: list[dict] = []
     group_counts: dict[str, int] = {g: 0 for g in _GROUP_LABELS}
+    severity_counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for i, line in enumerate(source.splitlines(), start=1):
         if _IMPORT_LINE_RE.match(line):
             continue
@@ -362,12 +394,18 @@ def scan_hallucination_words(source: str, allowlist: list[str] | None = None) ->
                 rest = line[m.start():]
                 if any(rest.lower().startswith(a.lower()) for a in allowlist):
                     continue
-                hits.append({"word": token, "group": group, "line": i})
+                severity = sev.get(group, "warning")
+                hits.append(
+                    {"word": token, "group": group, "line": i, "severity": severity}
+                )
                 group_counts[group] += 1
+                severity_counts[severity] += 1
     return {
         "hits": hits,
         "clean": len(hits) == 0,
+        "blocking": severity_counts["error"] > 0,
         "groups": group_counts,
+        "severities": severity_counts,
     }
 
 

@@ -142,6 +142,28 @@ class TestHallucinationScan(unittest.TestCase):
         self.assertTrue(any(h["word"] == "fake" for h in relaxed["hits"]))
         self.assertTrue(all(h["word"] != "mock" for h in relaxed["hits"]))
 
+    def test_default_severities(self):
+        src = "# TODO: later\nall tests pass, guaranteed\ndefinitely simulated\n"
+        r = engine.scan_hallucination_words(src)
+        sev_by_group = {h["group"]: h["severity"] for h in r["hits"]}
+        self.assertEqual(sev_by_group["stub_code"], "warning")
+        self.assertEqual(sev_by_group["oversold"], "error")
+        self.assertEqual(sev_by_group["fabricated"], "error")
+        self.assertTrue(r["blocking"])
+        self.assertFalse(r["clean"])
+
+    def test_severity_override_downgrades_to_info(self):
+        src = "guaranteed to work\n"
+        r = engine.scan_hallucination_words(src, severities={"oversold": "info"})
+        self.assertEqual(r["hits"][0]["severity"], "info")
+        self.assertFalse(r["blocking"])
+
+    def test_warning_only_does_not_block(self):
+        src = "# TODO: finish this section\n"
+        r = engine.scan_hallucination_words(src)
+        self.assertFalse(r["clean"])
+        self.assertFalse(r["blocking"])
+
 
 class TestConformance(unittest.TestCase):
     def test_self_conformant(self):
