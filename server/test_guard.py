@@ -193,6 +193,63 @@ class TestConformance(unittest.TestCase):
             self.assertFalse(r["ok"])
             self.assertTrue(any("repository" in e for e in r["errors"]))
 
+    @staticmethod
+    def _write_plugin(tmp, plugin_json, mcp_json):
+        with open(os.path.join(tmp, "plugin.json"), "w", encoding="utf-8") as fh:
+            fh.write(plugin_json)
+        with open(os.path.join(tmp, "mcp.json"), "w", encoding="utf-8") as fh:
+            fh.write(mcp_json)
+
+    PJ = ('{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",'
+          '"name":"t"}')
+    MJ = ('{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",'
+          '"mcpServers":{"s":%s}}')
+
+    def test_mcp_unknown_field_in_variant(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            # 'url' belongs to the http variants, not stdio
+            self._write_plugin(d, self.PJ, self.MJ % '{"type":"stdio","command":"srv","url":"https://x"}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertTrue(any("unknown field 'url'" in e for e in r["errors"]))
+
+    def test_mcp_reserved_env_keys(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(d, self.PJ,
+                               self.MJ % '{"type":"stdio","command":"srv","env":{"PLUGIN_DATA":"/x"}}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertTrue(any("reserved" in e for e in r["errors"]))
+
+    def test_mcp_http_non_loopback_rejected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(d, self.PJ, self.MJ % '{"type":"streamable-http","url":"http://example.com/mcp"}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertTrue(any("HTTPS" in e for e in r["errors"]))
+
+    def test_mcp_loopback_http_allowed_and_fragment_rejected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(d, self.PJ, self.MJ % '{"type":"sse","url":"http://localhost:3000/sse#frag"}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertFalse(any("HTTPS" in e for e in r["errors"]))
+            self.assertTrue(any("fragment" in e for e in r["errors"]))
+
+    def test_mcp_valid_remote_entry_passes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(
+                d, self.PJ,
+                self.MJ % '{"type":"streamable-http","url":"https://api.example.com/mcp",'
+                          '"headers":{"X-Tenant":"public"}}')
+            r = engine.check_plugin_conformance(d)
+            self.assertEqual([e for e in r["errors"] if "mcp.json" in e], [], r["errors"])
+
 
 class TestSandboxRun(unittest.TestCase):
     def test_runs_command(self):

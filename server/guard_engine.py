@@ -497,6 +497,14 @@ def _check_skill_dir(skill_root: str, entry: str) -> list[str]:
     return errs
 
 
+def _is_loopback_ipv4(host: str) -> bool:
+    """True if host is an IPv4 literal in the loopback range 127.0.0.0/8."""
+    parts = host.split(".")
+    if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+        return parts[0] == "127"
+    return False
+
+
 def check_plugin_conformance(plugin_dir: str) -> dict:
     """Validate a directory against Agent Plugins 1.0.0 (§5/§6/§7).
 
@@ -608,14 +616,59 @@ def check_plugin_conformance(plugin_dir: str) -> dict:
             if not isinstance(cfg, dict):
                 errors.append(f"mcp.json server '{sname}' must be an object")
                 continue
-            if cfg.get("type") not in ("stdio", "streamable-http", "sse"):
+            stype = cfg.get("type")
+            if stype not in ("stdio", "streamable-http", "sse"):
                 errors.append(
                     f"mcp.json server '{sname}' missing/unknown 'type' "
                     "(must be stdio | streamable-http | sse)"
                 )
-            if cfg.get("type") == "stdio":
-                if not cfg.get("command"):
+                continue
+            # §7.2.1: closed variants — a field belonging to another variant,
+            # or any unknown field, makes the entry invalid.
+            allowed_fields = {"stdio": {"type", "command", "args", "env", "cwd"},
+                              "streamable-http": {"type", "url", "headers"},
+                              "sse": {"type", "url", "headers"}}[stype]
+            for key in cfg:
+                if key not in allowed_fields:
+                    errors.append(
+                        f"mcp.json server '{sname}' has unknown field '{key}' "
+                        f"for type '{stype}' (closed variant: only "
+                        f"{sorted(allowed_fields)})"
+                    )
+            if stype == "stdio":
+                command = cfg.get("command")
+                if not command:
                     errors.append(f"mcp.json server '{sname}' (stdio) missing required 'command'")
+                elif not isinstance(command, str):
+                    errors.append(f"mcp.json server '{sname}' 'command' must be a string")
+                elif not ("./" in command.split("/")[0:1] or re.fullmatch(r"[A-Za-z0-9._\-]+", command)):
+                    # bare executable token, or plugin-relative './...' path (§7.2.1)
+                    errors.append(
+                        f"mcp.json server '{sname}' 'command' must be a single "
+                        "executable token or a plugin-relative './...' path"
+                    )
+                args = cfg.get("args")
+                if args is not None and (
+                    not isinstance(args, list)
+                    or any(not isinstance(a, str) for a in args)
+                ):
+                    errors.append(f"mcp.json server '{sname}' 'args' must be an array of strings")
+                env = cfg.get("env")
+                if env is not None:
+                    if not isinstance(env, dict) or any(
+                        not isinstance(v, str) for v in env.values()
+                    ):
+                        errors.append(
+                            f"mcp.json server '{sname}' 'env' must be an object of strings"
+                        )
+                    else:
+                        # §9.1: clients supply these; configuring them is invalid
+                        for reserved in ("PLUGIN_ROOT", "PLUGIN_DATA"):
+                            if reserved in env:
+                                errors.append(
+                                    f"mcp.json server '{sname}' 'env' must not define "
+                                    f"reserved variable '{reserved}'"
+                                )
                 cwd = cfg.get("cwd")
                 if cwd is not None and not (
                     cwd == "${PLUGIN_ROOT}"
@@ -629,8 +682,40 @@ def check_plugin_conformance(plugin_dir: str) -> dict:
                         "${PLUGIN_ROOT}[-rooted] or ${PLUGIN_DATA}[-rooted]"
                     )
             else:
-                if not cfg.get("url"):
+                url = cfg.get("url")
+                if not url:
                     errors.append(f"mcp.json server '{sname}' missing required 'url'")
+                elif isinstance(url, str):
+                    # §7.2.1: absolute HTTP(S) URL, no userinfo, no fragment;
+                    # HTTPS required except for loopback hosts.
+                    parsed = re.match(r"^https?://([^/?#]*)(.*)$", url)
+                    if "#" in url:
+                        errors.append(
+                            f"mcp.json server '{sname}' 'url' must not contain a fragment"
+                        )
+                    if "@" in parsed.group(1):
+                        errors.append(
+                            f"mcp.json server '{sname}' 'url' must not contain user information"
+                        )
+                    host = (parsed.group(1).split("@")[-1] or "").rsplit(":", 1)[0].strip("[]")
+                    if (
+                        url.startswith("http://")
+                        and host.lower() not in ("localhost", "::1")
+                        and not _is_loopback_ipv4(host)
+                    ):
+                        errors.append(
+                            f"mcp.json server '{sname}' non-loopback 'url' must use HTTPS"
+                        )
+                headers = cfg.get("headers")
+                if headers is not None and (
+                    not isinstance(headers, dict)
+                    or any(not isinstance(v, str) for v in headers.values())
+                    or len({k.lower() for k in headers}) != len(headers)
+                ):
+                    errors.append(
+                        f"mcp.json server '{sname}' 'headers' must be an object of "
+                        "strings without duplicate (case-insensitive) names"
+                    )
     else:
         warnings.append("No mcp.json (pure-skill plugin is conformant)")
 
