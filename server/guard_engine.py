@@ -268,6 +268,18 @@ def detect_undefined_symbols(source: str, language: str = "python") -> dict:
             defined.add(node.name)
         elif isinstance(node, ast.arg):
             defined.add(node.arg)
+        elif isinstance(node, ast.Global) or isinstance(node, ast.Nonlocal):
+            defined.update(node.names)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            defined.add(node.name)
+
+    # Any Name in Store context is a binding: plain assignments
+    # (x = ...), annotated/augmented assignment, for/with/except targets,
+    # walrus expressions, and comprehension variables. Collecting every
+    # Store-context name avoids false positives on ordinary local state.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            defined.add(node.id)
 
     defined |= imported
 

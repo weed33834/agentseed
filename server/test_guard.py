@@ -51,6 +51,43 @@ class TestUndefinedSymbols(unittest.TestCase):
         r = engine.detect_undefined_symbols(src, "python")
         self.assertEqual(r["suspects"], [])
 
+    def test_python_local_assignment_not_flagged(self):
+        src = "def f():\n    total = len([1, 2])\n    return total\n"
+        r = engine.detect_undefined_symbols(src, "python")
+        self.assertEqual(r["suspects"], [])
+
+    def test_python_for_with_except_targets_not_flagged(self):
+        src = (
+            "def f(items, path):\n"
+            "    out = []\n"
+            "    for it in items:\n"
+            "        out.append(it)\n"
+            "    try:\n"
+            "        with open(path) as fh:\n"
+            "            out.append(fh.read())\n"
+            "    except OSError as exc:\n"
+            "        out.append(str(exc))\n"
+            "    return out\n"
+        )
+        r = engine.detect_undefined_symbols(src, "python")
+        self.assertEqual(r["suspects"], [])
+
+    def test_python_walrus_and_augassign_not_flagged(self):
+        src = "def f(n):\n    count = 0\n    count += n\n    if (big := count * 2) > 10:\n        return big\n    return count\n"
+        r = engine.detect_undefined_symbols(src, "python")
+        self.assertEqual(r["suspects"], [])
+
+    def test_python_comprehension_and_global_not_flagged(self):
+        src = (
+            "counter = 0\n"
+            "def f(vals):\n"
+            "    global counter\n"
+            "    counter += 1\n"
+            "    return [v * 2 for v in vals]\n"
+        )
+        r = engine.detect_undefined_symbols(src, "python")
+        self.assertEqual(r["suspects"], [])
+
 
 class TestHallucinationScan(unittest.TestCase):
     def test_stub_group(self):
