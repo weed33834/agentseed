@@ -1,4 +1,5 @@
-# AgentSeed MCP server has ZERO third-party dependencies.
-# It is implemented with the Python standard library only.
-# Listed here for clarity / future optional extras (e.g. tree-sitter for TS/Go).
-# mcp  # optional, only if you prefer the official SDK over the hand-written server
+# AgentSeed MCP server external dependencies.
+# jsonschema — replaces the former hand-rolled JSON Schema subset validator.
+# pyflakes  — optional, used by symbols.py for more accurate Python AST analysis.
+jsonschema>=4.0.0
+pyflakes>=3.0.0
