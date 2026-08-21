@@ -3,6 +3,22 @@
 All notable changes to AgentSeed are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com); versioning follows [SemVer](https://semver.org).
 
+## [1.3.0] — 2026-08
+
+### Changed — modular engine, standard libraries over hand-rolled code
+- `guard_engine.py` split into the `server/engine/` package (config / hallucination / plugin / sandbox / schema / symbols); `guard_engine.py` remains as the import hub.
+- **schema_validate** now delegates to [`jsonschema`](https://pypi.org/project/jsonschema/) (Draft 2020-12, full keyword coverage) when installed; a built-in subset validator keeps bare environments working. Results report which validator ran (`validator` field).
+- **verify_code** (Python) uses [`pyflakes`](https://pypi.org/project/pyflakes/) F821 analysis when available for more reliable undefined-name detection; zero-dep AST walk remains the fallback.
+- SKILL.md frontmatter parsing uses PyYAML when available; lite parser remains the fallback.
+- Optional extras: `pip install -r server/requirements.txt` (jsonschema, pyflakes, pyyaml). The plugin still runs without any of them.
+
+### Fixed
+- Skill rules and tool text aligned with the severity model (only error-severity hits block; warnings reported but non-blocking).
+- `serverInfo` version is now read from root `plugin.json` (single source of truth) instead of a drifting literal.
+- Skill scripts (`check.sh`/`check.ps1`) locate the CLI by walking up to the plugin root or `AGENTSEED_PLUGIN_ROOT`; ps1 no longer assigns to the reserved `$args` variable.
+- Install scripts dropped speculative Cursor/VS Code auto-paths; platform matrix marks only actually-exercised clients as verified.
+- CI: main matrix installs requirements.txt; a new `bare` job pins the zero-dependency fallback path so an unconditional import cannot land again.
+
 ## [1.2.0] — 2026-08
 
 ### Added

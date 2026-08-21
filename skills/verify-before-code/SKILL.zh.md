@@ -5,7 +5,7 @@ description: >-
   服务器的 verify_code 与 scan_hallucination 工具；只有两者都通过且完成报告附
   带证据时，任务才可标记为完成。适用于智能体编写、修改或宣称完成代码的任何场景。
 license: MIT
-compatibility: MCP 服务器要求 Python 3.9+（纯标准库，无第三方依赖）。
+compatibility: MCP 服务器要求 Python 3.9+。零必需依赖；可选增强（jsonschema、pyflakes、pyyaml），未安装自动回退。
 metadata:
   author: AgentSeed
   version: "1.0.0"

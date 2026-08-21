@@ -9,7 +9,7 @@
 検証**します — "Done, all tests pass" を主張ではなく観測事実にします。
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/weed33834/AgentSeed/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue)](https://github.com/weed33834/AgentSeed/releases)
 [![Agent Plugins](https://img.shields.io/badge/Agent%20Plugins-1.0.0-purple)](https://agent-plugins.org)
 [![CI](https://github.com/weed33834/AgentSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/AgentSeed/actions)
 [![Stars](https://img.shields.io/github/stars/weed33834/AgentSeed)](https://github.com/weed33834/AgentSeed)
@@ -88,7 +88,7 @@ git clone https://github.com/weed33834/AgentSeed.git
 ```
 
 1. `AgentSeed/` ディレクトリを Agent Plugins 1.0.0 対応クライアント（Cursor、VS Code、
-   Claude Code、Copilot…）に置くだけ。ビルド不要・インストール不要・依存ゼロ。
+   Claude Code、Copilot…）に置くだけ。ビルド不要・インストール不要。コアは依存ゼロ（オプションの拡張は下記）。
 2. クライアントが `plugin.json` + `mcp.json` から `verify-before-code` スキルと
    `agentseed` MCP サーバーを自動検出します。
 3. **完了。** 以降、すべてのコーディングタスクにゲートがかかります：
@@ -109,6 +109,10 @@ python3 -m unittest discover -s server      # 50+ 個のユニットテスト
 ## 変更履歴
 
 [CHANGELOG.md](./CHANGELOG.md) を参照。
+
+### 1.3.0（要約）
+- **モジュール化:** `guard_engine.py` を `server/engine/` パッケージへ分割。手書き実装を標準ライブラリの車輪に置換 — jsonschema（Draft 2020-12 フル検証）、pyflakes（F821 未定義名分析）、PyYAML（frontmatter）。すべてオプションで、未インストール時は内蔵実装へ自動フォールバック。
+- **一貫性修正:** スキル文と重要度モデルの整合、バージョンの plugin.json 単一ソース化、インストーラの推測パス削除、プラットフォームマトリクスの正直なステータス。
 
 ### 1.2.0（要約）
 - **重要度レベル:** 各ヒットに `error`/`warning`/`info` を付与。既定では oversold/fabricated のみブロックし、TODO 系は warning へ。設定で再マップ可能。
@@ -158,7 +162,7 @@ python3 -m unittest discover -s server      # 50+ 個のユニットテスト
 **特定の LLM が必要ですか？** いいえ — クライアント・モデル非依存。ゲートはスキル +
 MCP サーバーが強制し、モデルには依存しません。
 
-**ゼロ依存？** はい。MCP サーバー全体が純 Python 標準ライブラリです。
+**ゼロ依存？** コアは依存ゼロです — 何もインストールせずに完全動作します。server/requirements.txt（jsonschema / pyflakes / pyyaml）を入れると schema_validate が Draft 2020-12 フル検証に、erify_code が pyflakes 分析に、frontmatter 解析がフル YAML にアップグレードされます（未インストール時は内蔵実装へ自動フォールバック）。
 
 **適合していますか？** `check_plugin` が 1.0.0 §5/§6/§7 に照らして検証 — AgentSeed は
 自身の linter を通過します（`ok: true`）。
