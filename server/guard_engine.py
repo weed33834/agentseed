@@ -650,14 +650,29 @@ def _schema_type_ok(value, expected: str) -> bool:
     return True
 
 
+def _json_equal(a, b) -> bool:
+    """JSON-Schema equality: booleans never equal numbers (True != 1)."""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return isinstance(a, bool) and isinstance(b, bool) and a is b
+    return a == b
+
+
 def _validate(instance, schema: dict, path: str, errors: list[str]) -> None:
     """Validate one value against one JSON Schema node (subset)."""
-    if schema.get("type") and not _schema_type_ok(instance, schema["type"]):
-        errors.append(f"{path}: expected type {schema['type']}, got {type(instance).__name__}")
-        return
-    if "enum" in schema and instance not in schema["enum"]:
+    type_spec = schema.get("type")
+    if type_spec is not None:
+        if isinstance(type_spec, list):
+            if not any(_schema_type_ok(instance, t) for t in type_spec):
+                errors.append(
+                    f"{path}: expected type in {type_spec}, got {type(instance).__name__}"
+                )
+                return
+        elif not _schema_type_ok(instance, type_spec):
+            errors.append(f"{path}: expected type {type_spec}, got {type(instance).__name__}")
+            return
+    if "enum" in schema and not any(_json_equal(instance, v) for v in schema["enum"]):
         errors.append(f"{path}: value not in enum {schema['enum']}")
-    if schema.get("const") is not None and instance != schema.get("const"):
+    if "const" in schema and not _json_equal(instance, schema["const"]):
         errors.append(f"{path}: expected const {schema['const']!r}")
     if isinstance(instance, str):
         if "minLength" in schema and len(instance) < schema["minLength"]:
@@ -690,9 +705,9 @@ def _validate(instance, schema: dict, path: str, errors: list[str]) -> None:
 
 
 def schema_validate(instance, schema: dict) -> dict:
-    """Validate an instance against a JSON Schema subset (type/enum/const/
-    minLength/maxLength/pattern/minItems/maxItems/items/properties/required/
-    additionalProperties). Zero dependencies.
+    """Validate an instance against a JSON Schema subset (type incl. type
+    arrays/enum/const/minLength/maxLength/pattern/minItems/maxItems/items/
+    properties/required/additionalProperties). Zero dependencies.
 
     Returns:
         {"valid": bool, "errors": [path messages]}

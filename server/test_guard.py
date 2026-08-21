@@ -182,6 +182,28 @@ class TestSchemaValidate(unittest.TestCase):
         self.assertFalse(r["valid"])
         self.assertTrue(any("name" in e for e in r["errors"]))
 
+    def test_const_null_validated(self):
+        r = engine.schema_validate(None, {"const": None})
+        self.assertTrue(r["valid"])
+        r = engine.schema_validate("x", {"const": None})
+        self.assertFalse(r["valid"])
+
+    def test_enum_bool_not_equal_int(self):
+        r = engine.schema_validate(False, {"enum": [0]})
+        self.assertFalse(r["valid"])
+        r = engine.schema_validate(True, {"enum": [1]})
+        self.assertFalse(r["valid"])
+        r = engine.schema_validate(0, {"enum": [0]})
+        self.assertTrue(r["valid"])
+
+    def test_type_array(self):
+        schema = {"type": ["string", "null"]}
+        self.assertTrue(engine.schema_validate(None, schema)["valid"])
+        self.assertTrue(engine.schema_validate("s", schema)["valid"])
+        r = engine.schema_validate(5, schema)
+        self.assertFalse(r["valid"])
+        self.assertTrue(any("expected type" in e for e in r["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
