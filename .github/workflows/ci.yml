@@ -6,15 +6,23 @@ on:
     branches: [main]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Run guard engine unit tests
-        run: python3 -m unittest discover -s server -p "test_*.py" -v
+      - name: Run unit tests
+        run: python -m unittest discover -s server -p "test_*.py" -v
+      - name: CLI smoke — plugin conformance gate
+        run: python server/guard_cli.py check . --ci
+      - name: CLI smoke — scan severity exit codes
+        shell: bash
+        run: |
+          python server/guard_cli.py scan "guaranteed to work" || test $? -eq 1
+          python server/guard_cli.py scan "# TODO: later"

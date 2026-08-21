@@ -9,7 +9,7 @@
 検証**します — "Done, all tests pass" を主張ではなく観測事実にします。
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/weed33834/AgentSeed/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/weed33834/AgentSeed/releases)
 [![Agent Plugins](https://img.shields.io/badge/Agent%20Plugins-1.0.0-purple)](https://agent-plugins.org)
 [![CI](https://github.com/weed33834/AgentSeed/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/AgentSeed/actions)
 [![Stars](https://img.shields.io/github/stars/weed33834/AgentSeed)](https://github.com/weed33834/AgentSeed)
@@ -98,7 +98,7 @@ git clone https://github.com/weed33834/AgentSeed.git
 
 ```bash
 python3 server/guard_engine.py              # 適合性 + デモ
-python3 -m unittest discover -s server      # 36 個のユニットテスト
+python3 -m unittest discover -s server      # 56 個のユニットテスト
 ```
 
 > **Windows の注意：** `mcp.json` は `python3` でサーバーを起動します。多くの Windows
@@ -108,12 +108,13 @@ python3 -m unittest discover -s server      # 36 個のユニットテスト
 
 ## 変更履歴
 
-### 1.1.0
-- **verify_code（Python）:** すべてのバインド対象（代入、`for`/`with`/`except ... as`、セイウチ演算子、内包表記、`global`/`nonlocal`）を収集 — 通常のローカル変数が幻覚シンボルと誤判定されなくなりました。
-- **scan_hallucination:** import 行とドットパス（`unittest.mock`）をスキップし、標準的なテストダブルを既定の allowlist で除外。新しいオプション `allowlist` で上書き可能。
-- **schema_validate:** `const: null` を検証；enum/const の等価性で真偽値と数値を区別；`type` 配列形式（`["string", "null"]`）に対応。
-- **MCP サーバー:** 未定義メソッドは JSON-RPC `-32601` を返却；`ping` は空の result を返却；内部エラーは `-32603` でセッションを維持。
-- **Linter:** SKILL.md フロントマター解析が本文中の `---` 行に耐性；TS/JS 解析が複数宣言（`const a = 1, b = 2`）を収集。
+[CHANGELOG.md](./CHANGELOG.md) を参照。
+
+### 1.2.0（要約）
+- **重要度レベル:** 各ヒットに `error`/`warning`/`info` を付与。既定では oversold/fabricated のみブロックし、TODO 系は warning へ。設定で再マップ可能。
+- **永続設定:** 仕様 §9.1 に従い `${PLUGIN_DATA}/agentseed.config.json` から allowlist・重要度マップ・サンドボックスタイムアウトを読み込み。
+- **CLI:** `server/guard_cli.py` が `verify`/`scan`/`check --ci`/`sandbox` を提供。終了コードで人間の PR もゲート可能。
+- **Linter:** §7.2.1/§9.1 準拠 — サーバーエントリのクローズドバリアント検証、予約 env キー、リモート URL ルール。
 
 ## 内蔵ガードレールライブラリ（日本語 / EN / 中文）
 

@@ -25,7 +25,17 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import guard_engine as engine  # noqa: E402
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
+
+# Loaded once at startup: AGENTSEED_CONFIG env, ${PLUGIN_DATA}/
+# agentseed.config.json (Agent Plugins v1.0.0 §9.1), or ./agentseed.config.json.
+CONFIG = engine.load_config()
+CONFIG_ALLOWLIST = engine._config_str_list(CONFIG, "allowlist")
+CONFIG_SEVERITIES = engine._config_severities(CONFIG)
+try:
+    CONFIG_TIMEOUT = int(CONFIG.get("timeout", 30))
+except (TypeError, ValueError):
+    CONFIG_TIMEOUT = 30
 
 
 def _tool(name: str, description: str, props: dict, required: list[str]) -> dict:
@@ -142,15 +152,20 @@ def _dispatch(method: str, params: dict) -> dict:
                 args.get("source", ""), args.get("language", "python")
             )
         elif name == "scan_hallucination":
+            # explicit tool arguments win over config-file values
+            allowlist = args.get("allowlist")
+            if allowlist is None:
+                allowlist = CONFIG_ALLOWLIST
             result = engine.scan_hallucination_words(
-                args.get("source", ""), args.get("allowlist")
+                args.get("source", ""), allowlist, CONFIG_SEVERITIES
             )
         elif name == "check_plugin":
             result = engine.check_plugin_conformance(args.get("path", ""))
         elif name == "sandbox_run":
+            timeout = args.get("timeout")
             result = engine.sandbox_run(
                 args.get("command", []),
-                int(args.get("timeout", 30)),
+                int(timeout) if timeout is not None else CONFIG_TIMEOUT,
                 args.get("cwd"),
             )
         elif name == "schema_validate":

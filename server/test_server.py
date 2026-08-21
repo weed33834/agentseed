@@ -36,7 +36,7 @@ class TestServerProtocol(unittest.TestCase):
     def test_initialize_reports_version(self):
         r = self._rpc({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                        "params": {"protocolVersion": "2024-11-05", "capabilities": {}}})
-        self.assertEqual(r["result"]["serverInfo"]["version"], "1.1.0")
+        self.assertEqual(r["result"]["serverInfo"]["version"], "1.2.0")
 
     def test_ping_returns_empty_result(self):
         r = self._rpc({"jsonrpc": "2.0", "id": 2, "method": "ping"})

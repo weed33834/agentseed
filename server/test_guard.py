@@ -1,5 +1,6 @@
 """AgentSeed guard engine unit tests (stdlib unittest, zero deps)."""
 
+import json
 import os
 import sys
 import unittest
@@ -142,6 +143,28 @@ class TestHallucinationScan(unittest.TestCase):
         self.assertTrue(any(h["word"] == "fake" for h in relaxed["hits"]))
         self.assertTrue(all(h["word"] != "mock" for h in relaxed["hits"]))
 
+    def test_default_severities(self):
+        src = "# TODO: later\nall tests pass, guaranteed\ndefinitely simulated\n"
+        r = engine.scan_hallucination_words(src)
+        sev_by_group = {h["group"]: h["severity"] for h in r["hits"]}
+        self.assertEqual(sev_by_group["stub_code"], "warning")
+        self.assertEqual(sev_by_group["oversold"], "error")
+        self.assertEqual(sev_by_group["fabricated"], "error")
+        self.assertTrue(r["blocking"])
+        self.assertFalse(r["clean"])
+
+    def test_severity_override_downgrades_to_info(self):
+        src = "guaranteed to work\n"
+        r = engine.scan_hallucination_words(src, severities={"oversold": "info"})
+        self.assertEqual(r["hits"][0]["severity"], "info")
+        self.assertFalse(r["blocking"])
+
+    def test_warning_only_does_not_block(self):
+        src = "# TODO: finish this section\n"
+        r = engine.scan_hallucination_words(src)
+        self.assertFalse(r["clean"])
+        self.assertFalse(r["blocking"])
+
 
 class TestConformance(unittest.TestCase):
     def test_self_conformant(self):
@@ -170,6 +193,63 @@ class TestConformance(unittest.TestCase):
             r = engine.check_plugin_conformance(d)
             self.assertFalse(r["ok"])
             self.assertTrue(any("repository" in e for e in r["errors"]))
+
+    @staticmethod
+    def _write_plugin(tmp, plugin_json, mcp_json):
+        with open(os.path.join(tmp, "plugin.json"), "w", encoding="utf-8") as fh:
+            fh.write(plugin_json)
+        with open(os.path.join(tmp, "mcp.json"), "w", encoding="utf-8") as fh:
+            fh.write(mcp_json)
+
+    PJ = ('{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",'
+          '"name":"t"}')
+    MJ = ('{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",'
+          '"mcpServers":{"s":%s}}')
+
+    def test_mcp_unknown_field_in_variant(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            # 'url' belongs to the http variants, not stdio
+            self._write_plugin(d, self.PJ, self.MJ % '{"type":"stdio","command":"srv","url":"https://x"}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertTrue(any("unknown field 'url'" in e for e in r["errors"]))
+
+    def test_mcp_reserved_env_keys(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(d, self.PJ,
+                               self.MJ % '{"type":"stdio","command":"srv","env":{"PLUGIN_DATA":"/x"}}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertTrue(any("reserved" in e for e in r["errors"]))
+
+    def test_mcp_http_non_loopback_rejected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(d, self.PJ, self.MJ % '{"type":"streamable-http","url":"http://example.com/mcp"}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertTrue(any("HTTPS" in e for e in r["errors"]))
+
+    def test_mcp_loopback_http_allowed_and_fragment_rejected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(d, self.PJ, self.MJ % '{"type":"sse","url":"http://localhost:3000/sse#frag"}')
+            r = engine.check_plugin_conformance(d)
+            self.assertFalse(r["ok"])
+            self.assertFalse(any("HTTPS" in e for e in r["errors"]))
+            self.assertTrue(any("fragment" in e for e in r["errors"]))
+
+    def test_mcp_valid_remote_entry_passes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self._write_plugin(
+                d, self.PJ,
+                self.MJ % '{"type":"streamable-http","url":"https://api.example.com/mcp",'
+                          '"headers":{"X-Tenant":"public"}}')
+            r = engine.check_plugin_conformance(d)
+            self.assertEqual([e for e in r["errors"] if "mcp.json" in e], [], r["errors"])
 
 
 class TestSandboxRun(unittest.TestCase):
@@ -224,6 +304,45 @@ class TestSchemaValidate(unittest.TestCase):
         r = engine.schema_validate(5, schema)
         self.assertFalse(r["valid"])
         self.assertTrue(any("expected type" in e for e in r["errors"]))
+
+
+class TestConfig(unittest.TestCase):
+    def test_load_config_missing_returns_empty(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            old = os.getcwd()
+            os.chdir(d)
+            try:
+                self.assertEqual(engine.load_config(), {})
+            finally:
+                os.chdir(old)
+
+    def test_load_config_plugin_data(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            cfg = os.path.join(d, engine.CONFIG_FILENAME)
+            with open(cfg, "w", encoding="utf-8") as fh:
+                fh.write('{"severities": {"stub_code": "info"}, "timeout": 15}')
+            env = {k: v for k, v in os.environ.items()
+                   if k not in ("AGENTSEED_CONFIG",)}
+            env["PLUGIN_DATA"] = d
+            import subprocess
+            out = subprocess.run(
+                [sys.executable, "-c",
+                 "import json, sys; sys.path.insert(0, r'%s');"
+                 "import guard_engine as e; print(json.dumps(e.load_config()))" %
+                 os.path.dirname(os.path.abspath(__file__))],
+                capture_output=True, text=True, env=env, check=True,
+            )
+            self.assertEqual(json.loads(out.stdout)["timeout"], 15)
+
+    def test_load_config_invalid_json_ignored(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            bad = os.path.join(d, "bad.json")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            self.assertEqual(engine.load_config(bad), {})
 
 
 if __name__ == "__main__":

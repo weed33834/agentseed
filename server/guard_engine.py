@@ -328,7 +328,86 @@ def detect_undefined_symbols(source: str, language: str = "python") -> dict:
     }
 
 
-def scan_hallucination_words(source: str, allowlist: list[str] | None = None) -> dict:
+# Default severity per signal group. Tunable via config (see load_config):
+#   error   -> blocks completion
+#   warning -> reported, does not block
+#   info    -> informational only
+# stub_code defaults to warning: TODO/WIP markers are common in legitimate
+# work-in-progress sections; oversold/fabricated claims are always suspect.
+DEFAULT_SEVERITIES: dict[str, str] = {
+    "stub_code": "warning",
+    "oversold": "error",
+    "fabricated": "error",
+}
+_VALID_SEVERITIES = {"error", "warning", "info"}
+
+CONFIG_FILENAME = "agentseed.config.json"
+
+
+def load_config(explicit_path: str | None = None) -> dict:
+    """Load the effective AgentSeed config (zero dependencies).
+
+    Search order (first hit wins):
+      1. ``explicit_path`` argument
+      2. ``AGENTSEED_CONFIG`` environment variable
+      3. ``${PLUGIN_DATA}/agentseed.config.json`` — the Agent Plugins spec
+         (v1.0.0 §9.1) guarantees clients set PLUGIN_DATA to a persistent,
+         writable per-plugin directory, making it the natural place for
+         user overrides that survive plugin updates.
+      4. ``./agentseed.config.json`` in the current working directory.
+
+    Recognized keys (all optional):
+      allowlist   : list[str] - scan exclusions (replaces DEFAULT_ALLOWLIST)
+      severities  : dict[str, str] - group -> error|warning|info
+      timeout     : int - default sandbox_run timeout in seconds
+
+    Returns {} when no config file exists or it cannot be parsed.
+    """
+    candidates: list[str] = []
+    if explicit_path:
+        candidates.append(explicit_path)
+    env_path = os.environ.get("AGENTSEED_CONFIG")
+    if env_path:
+        candidates.append(env_path)
+    plugin_data = os.environ.get("PLUGIN_DATA")
+    if plugin_data:
+        candidates.append(os.path.join(plugin_data, CONFIG_FILENAME))
+    candidates.append(CONFIG_FILENAME)
+
+    for path in candidates:
+        if path and os.path.isfile(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    data = json.load(fh)
+                if isinstance(data, dict):
+                    return data
+            except (OSError, ValueError):
+                continue
+    return {}
+
+
+def _config_str_list(config: dict, key: str) -> list[str] | None:
+    value = config.get(key)
+    if isinstance(value, list) and all(isinstance(v, str) for v in value):
+        return value
+    return None
+
+
+def _config_severities(config: dict) -> dict[str, str] | None:
+    value = config.get("severities")
+    if isinstance(value, dict) and all(
+        isinstance(k, str) and isinstance(v, str) and v in _VALID_SEVERITIES
+        for k, v in value.items()
+    ):
+        return value
+    return None
+
+
+def scan_hallucination_words(
+    source: str,
+    allowlist: list[str] | None = None,
+    severities: dict[str, str] | None = None,
+) -> dict:
     """Scan source for tokens in the grouped hallucination pool.
 
     To avoid flagging legitimate code, matches are skipped when:
@@ -339,17 +418,31 @@ def scan_hallucination_words(source: str, allowlist: list[str] | None = None) ->
         (defaults to DEFAULT_ALLOWLIST; pass a custom list to override,
         or an empty list to disable all exclusions).
 
+    Each hit carries a severity (``error`` | ``warning`` | ``info``) taken
+    from ``severities`` (group -> severity), falling back to
+    DEFAULT_SEVERITIES. ``blocking`` reports whether any error-severity hit
+    exists; warnings/info never block completion on their own.
+
     Returns:
         {
-          "hits": [{"word": "stub", "group": "stub_code", "line": 12}, ...],
+          "hits": [{"word": "stub", "group": "stub_code", "line": 12,
+                    "severity": "warning"}, ...],
           "clean": bool,
-          "groups": {"stub_code": 2, "oversold": 1, "fabricated": 0}
+          "blocking": bool,
+          "groups": {"stub_code": 2, "oversold": 1, "fabricated": 0},
+          "severities": {"error": 1, "warning": 2, "info": 0}
         }
     """
     if allowlist is None:
         allowlist = DEFAULT_ALLOWLIST
+    sev = dict(DEFAULT_SEVERITIES)
+    if severities:
+        for g, s in severities.items():
+            if g in _GROUP_LABELS and s in _VALID_SEVERITIES:
+                sev[g] = s
     hits: list[dict] = []
     group_counts: dict[str, int] = {g: 0 for g in _GROUP_LABELS}
+    severity_counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for i, line in enumerate(source.splitlines(), start=1):
         if _IMPORT_LINE_RE.match(line):
             continue
@@ -362,12 +455,18 @@ def scan_hallucination_words(source: str, allowlist: list[str] | None = None) ->
                 rest = line[m.start():]
                 if any(rest.lower().startswith(a.lower()) for a in allowlist):
                     continue
-                hits.append({"word": token, "group": group, "line": i})
+                severity = sev.get(group, "warning")
+                hits.append(
+                    {"word": token, "group": group, "line": i, "severity": severity}
+                )
                 group_counts[group] += 1
+                severity_counts[severity] += 1
     return {
         "hits": hits,
         "clean": len(hits) == 0,
+        "blocking": severity_counts["error"] > 0,
         "groups": group_counts,
+        "severities": severity_counts,
     }
 
 
@@ -457,6 +556,14 @@ def _check_skill_dir(skill_root: str, entry: str) -> list[str]:
     elif len(desc) > 1024:
         errs.append(f"skills/{entry}/SKILL.md 'description' exceeds 1024 chars")
     return errs
+
+
+def _is_loopback_ipv4(host: str) -> bool:
+    """True if host is an IPv4 literal in the loopback range 127.0.0.0/8."""
+    parts = host.split(".")
+    if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+        return parts[0] == "127"
+    return False
 
 
 def check_plugin_conformance(plugin_dir: str) -> dict:
@@ -570,14 +677,59 @@ def check_plugin_conformance(plugin_dir: str) -> dict:
             if not isinstance(cfg, dict):
                 errors.append(f"mcp.json server '{sname}' must be an object")
                 continue
-            if cfg.get("type") not in ("stdio", "streamable-http", "sse"):
+            stype = cfg.get("type")
+            if stype not in ("stdio", "streamable-http", "sse"):
                 errors.append(
                     f"mcp.json server '{sname}' missing/unknown 'type' "
                     "(must be stdio | streamable-http | sse)"
                 )
-            if cfg.get("type") == "stdio":
-                if not cfg.get("command"):
+                continue
+            # §7.2.1: closed variants — a field belonging to another variant,
+            # or any unknown field, makes the entry invalid.
+            allowed_fields = {"stdio": {"type", "command", "args", "env", "cwd"},
+                              "streamable-http": {"type", "url", "headers"},
+                              "sse": {"type", "url", "headers"}}[stype]
+            for key in cfg:
+                if key not in allowed_fields:
+                    errors.append(
+                        f"mcp.json server '{sname}' has unknown field '{key}' "
+                        f"for type '{stype}' (closed variant: only "
+                        f"{sorted(allowed_fields)})"
+                    )
+            if stype == "stdio":
+                command = cfg.get("command")
+                if not command:
                     errors.append(f"mcp.json server '{sname}' (stdio) missing required 'command'")
+                elif not isinstance(command, str):
+                    errors.append(f"mcp.json server '{sname}' 'command' must be a string")
+                elif not ("./" in command.split("/")[0:1] or re.fullmatch(r"[A-Za-z0-9._\-]+", command)):
+                    # bare executable token, or plugin-relative './...' path (§7.2.1)
+                    errors.append(
+                        f"mcp.json server '{sname}' 'command' must be a single "
+                        "executable token or a plugin-relative './...' path"
+                    )
+                args = cfg.get("args")
+                if args is not None and (
+                    not isinstance(args, list)
+                    or any(not isinstance(a, str) for a in args)
+                ):
+                    errors.append(f"mcp.json server '{sname}' 'args' must be an array of strings")
+                env = cfg.get("env")
+                if env is not None:
+                    if not isinstance(env, dict) or any(
+                        not isinstance(v, str) for v in env.values()
+                    ):
+                        errors.append(
+                            f"mcp.json server '{sname}' 'env' must be an object of strings"
+                        )
+                    else:
+                        # §9.1: clients supply these; configuring them is invalid
+                        for reserved in ("PLUGIN_ROOT", "PLUGIN_DATA"):
+                            if reserved in env:
+                                errors.append(
+                                    f"mcp.json server '{sname}' 'env' must not define "
+                                    f"reserved variable '{reserved}'"
+                                )
                 cwd = cfg.get("cwd")
                 if cwd is not None and not (
                     cwd == "${PLUGIN_ROOT}"
@@ -591,8 +743,40 @@ def check_plugin_conformance(plugin_dir: str) -> dict:
                         "${PLUGIN_ROOT}[-rooted] or ${PLUGIN_DATA}[-rooted]"
                     )
             else:
-                if not cfg.get("url"):
+                url = cfg.get("url")
+                if not url:
                     errors.append(f"mcp.json server '{sname}' missing required 'url'")
+                elif isinstance(url, str):
+                    # §7.2.1: absolute HTTP(S) URL, no userinfo, no fragment;
+                    # HTTPS required except for loopback hosts.
+                    parsed = re.match(r"^https?://([^/?#]*)(.*)$", url)
+                    if "#" in url:
+                        errors.append(
+                            f"mcp.json server '{sname}' 'url' must not contain a fragment"
+                        )
+                    if "@" in parsed.group(1):
+                        errors.append(
+                            f"mcp.json server '{sname}' 'url' must not contain user information"
+                        )
+                    host = (parsed.group(1).split("@")[-1] or "").rsplit(":", 1)[0].strip("[]")
+                    if (
+                        url.startswith("http://")
+                        and host.lower() not in ("localhost", "::1")
+                        and not _is_loopback_ipv4(host)
+                    ):
+                        errors.append(
+                            f"mcp.json server '{sname}' non-loopback 'url' must use HTTPS"
+                        )
+                headers = cfg.get("headers")
+                if headers is not None and (
+                    not isinstance(headers, dict)
+                    or any(not isinstance(v, str) for v in headers.values())
+                    or len({k.lower() for k in headers}) != len(headers)
+                ):
+                    errors.append(
+                        f"mcp.json server '{sname}' 'headers' must be an object of "
+                        "strings without duplicate (case-insensitive) names"
+                    )
     else:
         warnings.append("No mcp.json (pure-skill plugin is conformant)")
 
