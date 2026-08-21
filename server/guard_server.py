@@ -19,23 +19,18 @@ Tools:
 from __future__ import annotations
 
 import json
-import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import guard_engine as engine  # noqa: E402
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # Loaded once at startup: AGENTSEED_CONFIG env, ${PLUGIN_DATA}/
 # agentseed.config.json (Agent Plugins v1.0.0 §9.1), or ./agentseed.config.json.
 CONFIG = engine.load_config()
 CONFIG_ALLOWLIST = engine._config_str_list(CONFIG, "allowlist")
 CONFIG_SEVERITIES = engine._config_severities(CONFIG)
-try:
-    CONFIG_TIMEOUT = int(CONFIG.get("timeout", 30))
-except (TypeError, ValueError):
-    CONFIG_TIMEOUT = 30
+CONFIG_TIMEOUT = engine._parse_timeout(CONFIG)
 
 
 def _tool(name: str, description: str, props: dict, required: list[str]) -> dict:

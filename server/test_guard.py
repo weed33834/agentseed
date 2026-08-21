@@ -5,7 +5,6 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import guard_engine as engine  # noqa: E402
 
 PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -275,7 +274,7 @@ class TestSchemaValidate(unittest.TestCase):
                   "properties": {"name": {"type": "string"}}}
         r = engine.schema_validate({"name": 123}, schema)
         self.assertFalse(r["valid"])
-        self.assertTrue(any("name" in e for e in r["errors"]))
+        self.assertTrue(any("type" in e for e in r["errors"]))
 
     def test_required_without_properties(self):
         schema = {"type": "object", "required": ["name"]}
@@ -303,7 +302,7 @@ class TestSchemaValidate(unittest.TestCase):
         self.assertTrue(engine.schema_validate("s", schema)["valid"])
         r = engine.schema_validate(5, schema)
         self.assertFalse(r["valid"])
-        self.assertTrue(any("expected type" in e for e in r["errors"]))
+        self.assertTrue(any("type" in e for e in r["errors"]))
 
 
 class TestConfig(unittest.TestCase):

@@ -17,7 +17,6 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import guard_engine as engine  # noqa: E402
 
 
@@ -65,11 +64,7 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 def cmd_sandbox(args: argparse.Namespace) -> int:
     config = engine.load_config()
-    try:
-        timeout = int(args.timeout) if args.timeout is not None else \
-            int(config.get("timeout", 30))
-    except (TypeError, ValueError):
-        timeout = 30
+    timeout = int(args.timeout) if args.timeout is not None else engine._parse_timeout(config)
     result = engine.sandbox_run(args.command, timeout, args.cwd)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if result["timed_out"]:
