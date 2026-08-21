@@ -1,0 +1,30 @@
+{
+  "name": "agentseed-mcp",
+  "version": "1.3.3",
+  "description": "Anti-hallucination guardrails for AI coding agents: hybrid Skill + MCP server that forces spec-driven development and verifies code before it is marked done.",
+  "license": "MIT",
+  "mcpName": "io.github.weed33834/agentseed",
+  "bin": {
+    "agentseed-mcp": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "server/",
+    "skills/",
+    "plugin.json",
+    "mcp.json",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weed33834/AgentSeed.git"
+  },
+  "homepage": "https://github.com/weed33834/AgentSeed#readme",
+  "bugs": {
+    "url": "https://github.com/weed33834/AgentSeed/issues"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

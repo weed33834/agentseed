@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.weed33834/agentseed",
+  "title": "AgentSeed",
+  "description": "Anti-hallucination guardrails for AI coding agents: hybrid Skill + MCP server that forces spec-driven development and verifies code (AST analysis, hallucination scan, sandboxed execution, schema validation) before it is marked done.",
+  "version": "1.3.3",
+  "repository": {
+    "url": "https://github.com/weed33834/AgentSeed",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "agentseed-mcp",
+      "version": "1.3.3",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "keywords": [
+    "guardrails",
+    "anti-hallucination",
+    "code-verification",
+    "spec-driven-development",
+    "coding-agent"
+  ],
+  "license": "MIT"
+}
