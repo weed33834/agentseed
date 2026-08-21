@@ -1,5 +1,6 @@
 """AgentSeed guard engine unit tests (stdlib unittest, zero deps)."""
 
+import json
 import os
 import sys
 import unittest
@@ -303,6 +304,45 @@ class TestSchemaValidate(unittest.TestCase):
         r = engine.schema_validate(5, schema)
         self.assertFalse(r["valid"])
         self.assertTrue(any("expected type" in e for e in r["errors"]))
+
+
+class TestConfig(unittest.TestCase):
+    def test_load_config_missing_returns_empty(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            old = os.getcwd()
+            os.chdir(d)
+            try:
+                self.assertEqual(engine.load_config(), {})
+            finally:
+                os.chdir(old)
+
+    def test_load_config_plugin_data(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            cfg = os.path.join(d, engine.CONFIG_FILENAME)
+            with open(cfg, "w", encoding="utf-8") as fh:
+                fh.write('{"severities": {"stub_code": "info"}, "timeout": 15}')
+            env = {k: v for k, v in os.environ.items()
+                   if k not in ("AGENTSEED_CONFIG",)}
+            env["PLUGIN_DATA"] = d
+            import subprocess
+            out = subprocess.run(
+                [sys.executable, "-c",
+                 "import json, sys; sys.path.insert(0, r'%s');"
+                 "import guard_engine as e; print(json.dumps(e.load_config()))" %
+                 os.path.dirname(os.path.abspath(__file__))],
+                capture_output=True, text=True, env=env, check=True,
+            )
+            self.assertEqual(json.loads(out.stdout)["timeout"], 15)
+
+    def test_load_config_invalid_json_ignored(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            bad = os.path.join(d, "bad.json")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            self.assertEqual(engine.load_config(bad), {})
 
 
 if __name__ == "__main__":
