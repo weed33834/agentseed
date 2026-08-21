@@ -66,8 +66,11 @@ TOOLS = [
         "scan_hallucination",
         "Scan source for hallucination signals in three groups: stub_code "
         "(stub/mock/fake/placeholder/todo/...), oversold (guaranteed/all tests "
-        "pass/production ready/...), fabricated (simulated/invented/...). If "
-        "any hit is found, the task must be downgraded to incomplete.",
+        "pass/production ready/...), fabricated (simulated/invented/...). "
+        "Each hit carries a severity; only error-severity hits set "
+        "'blocking': true. A blocking result means the task is NOT done — "
+        "fix the flagged lines or downgrade deliberately via config. "
+        "Warning/info hits must be reported but do not block completion.",
         {
             "source": {"type": "string", "description": "Source code to scan."},
             "allowlist": {

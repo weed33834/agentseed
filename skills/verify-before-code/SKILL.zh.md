@@ -57,18 +57,19 @@ scan_hallucination(source=<最终源码>)
 
 判定规则：
 
-- `verify_code` 返回 `suspects: []` 且 `scan_hallucination` 返回 `clean: true`
+- `verify_code` 返回 `suspects: []` 且 `scan_hallucination` 返回 `blocking: false`
   → 验证闸门通过。
 - `verify_code` 返回任何 suspect（被使用/调用却从未定义或导入的符号）→ 你很可能
   幻觉出了一个 API。修复它（导入、定义，或换成真实调用）后重跑。
-- `scan_hallucination` 返回命中时，看 `group` 字段：
-  - `stub_code` → 任务**尚未**完成；把占位符换成真实代码后重跑。
-  - `oversold` → 未经验证的自信声称（如 "all tests pass"、"production ready"）。
-    附上证据或改写；重跑。
-  - `fabricated` → 虚构/模拟内容；删除或接地；重跑。
+- `scan_hallucination` 返回命中时，先看 `severity` 字段：
+  - `error`（任一命中）→ `blocking: true`，任务**尚未**完成；修复被标记的行后
+    重跑。默认 `oversold` 和 `fabricated` 为 error：附上证据或删除该声称/内容。
+  - `warning`（如 `stub_code` 的默认级别）→ 不阻断，但必须在完成报告中提及；
+    若它标记的是确实未完成的工作，按 error 对待。
+  - `info` → 仅提示，无需处理。
 
-只要任一工具仍报错，就绝不要标记编程任务完成。若你无法消除某个告警，如实向用户
-报告，而不是谎称成功。
+只要仍存在**阻断性**问题（`suspects` 非空或 `blocking: true`），就绝不要标记编程
+任务完成。若你无法消除某个告警，如实向用户报告，而不是谎称成功。
 
 执行与结构同样用"可观测事实"来验证，而不是靠声称：
 
