@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AgentSeed installer - download the latest release and drop it into a client.
-# Usage: ./install.sh [--client cursor|claude|opencode|vscode|manual] [--dir TARGET]
+# Usage: ./install.sh [--client claude|opencode|cursor|manual] [--dir TARGET]
 set -e
 repo="weed33834/AgentSeed"
 client="auto"
@@ -35,13 +35,17 @@ install_to() {
 }
 
 case "$client" in
-  cursor)   install_to "$HOME/.cursor/extensions/agentseed/agentseed" ;;
   claude)   install_to "$HOME/.claude/skills/verify-before-code" ;;
   opencode) install_to "$HOME/.config/opencode/skill/verify-before-code" ;;
-  vscode)   install_to "$HOME/.vscode/extensions/agentseed/agentseed" ;;
+  cursor)
+    # Cursor has no stable Agent Plugins directory yet - install locally
+    dest="${dir:-$PWD}/AgentSeed"
+    install_to "$dest"
+    echo "==> Cursor: point your MCP config at this folder's mcp.json and copy skills/verify-before-code into the skills location."
+    ;;
   manual|auto)
     dest="${dir:-$PWD}/AgentSeed"
     install_to "$dest"
-    echo "==> done. Drop $dest into your client, or re-run with --client <name>."
+    echo "==> done. Drop $dest into your client, or re-run with --client claude|opencode."
     ;;
 esac

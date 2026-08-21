@@ -98,7 +98,7 @@ git clone https://github.com/weed33834/AgentSeed.git
 
 ```bash
 python3 server/guard_engine.py              # 適合性 + デモ
-python3 -m unittest discover -s server      # 56 個のユニットテスト
+python3 -m unittest discover -s server      # 50+ 個のユニットテスト
 ```
 
 > **Windows の注意：** `mcp.json` は `python3` でサーバーを起動します。多くの Windows

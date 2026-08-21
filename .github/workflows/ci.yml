@@ -32,3 +32,4 @@ jobs:
         run: |
           chmod +x skills/verify-before-code/scripts/check.sh
           PYTHON=python skills/verify-before-code/scripts/check.sh .
+          bash -n install.sh

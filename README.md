@@ -82,7 +82,7 @@ $ check_plugin(path="/path/to/AgentSeed")
 # or use the installer, which drops it into a client of your choice:
 bash install.sh --client auto        # macOS / Linux
 ./install.ps1 -Client auto           # Windows PowerShell
-# --client: cursor | claude | opencode | vscode | copilot | manual
+# --client: claude | opencode | cursor | manual
 ```
 
 **Option B — clone:**
@@ -100,7 +100,7 @@ Run it standalone for a self-check:
 
 ```bash
 python3 server/guard_engine.py              # conformance + demos
-python3 -m unittest discover -s server      # 56 unit tests
+python3 -m unittest discover -s server      # 50+ unit tests
 ```
 
 Gate a human PR with the same rules (CI mode):
@@ -119,11 +119,15 @@ python3 server/guard_cli.py scan src/ --strict   # hallucination scan, blocking 
 
 | Client | Agent Plugins 1.0.0 | Status | Notes |
 | --- | --- | --- | --- |
-| Cursor | skills + mcp.json | verified | copy into project / global extensions dir |
 | Claude Code | skills + MCP config | verified | skills via `~/.claude/skills`, server via `claude mcp add` |
 | opencode | skills + MCP config | verified | `~/.config/opencode/opencode.json`, see docs |
-| VS Code (+Copilot) | MCP support rolling out | expected | use mcp.json fields as-is |
-| Cline / Windsurf | MCP config compatible | expected | stdio server entry maps directly |
+| Cursor | skills + mcp.json | untested* | copy into project; no stable plugin dir yet |
+| VS Code (+Copilot) | MCP support rolling out | untested* | use mcp.json fields as-is |
+| Cline / Windsurf | MCP config compatible | untested* | stdio server entry maps directly |
+
+\* honest states: the formats are spec-compatible and expected to work, but we
+have not run AgentSeed in these clients ourselves. Verified = actually exercised
+by the maintainers. If you verify one, open a PR updating this table.
 
 Clients honoring the full spec also set `${PLUGIN_DATA}`; AgentSeed reads
 `agentseed.config.json` from there (allowlist, severity map, sandbox timeout).
